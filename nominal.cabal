@@ -40,5 +40,6 @@ library
     Nominal.Internal.Atom
     Nominal.Internal.Permutation
     Nominal.Internal.Support
+    Nominal.Permutation
     Nominal.Support
     Nominal.Tie

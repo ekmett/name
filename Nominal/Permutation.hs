@@ -15,15 +15,8 @@ module Nominal.Permutation
 
 import Numeric.Natural
 import Control.Lens
-import Data.Functor.Contravariant
-import Data.Functor.Contravariant.Divisible
-import Data.Functor.Contravariant.Generic
 import Data.List (groupBy)
-import Data.Maybe
-import Data.Proxy
 import Data.Semigroup
-import GHC.Generics
-import Data.Void
 import Nominal.Internal.Atom
 import Nominal.Internal.Permutation
 
