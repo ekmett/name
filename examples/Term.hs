@@ -10,7 +10,7 @@ data Term
   | Lam !(Tie Term)
   deriving (Eq, Generic)
 
-instance Act Term 
+instance Perm Term
 instance Nominal Term
 
 -- Eq respects alpha-equivalence of bound terms
