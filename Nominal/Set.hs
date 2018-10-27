@@ -5,24 +5,25 @@
 {-# language FlexibleContexts #-}
 {-# language PatternSynonyms #-}
 
-module Nominal.Support
+module Nominal.Set
 ( Supported(..)
-, Support
+, Set
 , member
 , contains
 , pattern Empty
 , delete, insert, diff, union, intersect, singleton
 -- fresh variables
 , Stream(..), fresh, fresh1
+, (+>)
 ) where
 
 import Control.Lens
 import Data.Functor.Contravariant.Divisible
 import Data.Void
 import Nominal.Internal.Atom
-import Nominal.Internal.Support
+import Nominal.Internal.Set
 
-newtype Supported a = Supported { getSupported :: a -> Support }
+newtype Supported a = Supported { getSupported :: a -> Set }
 
 instance Contravariant Supported where
   contramap f (Supported g) = Supported (g . f)
@@ -46,7 +47,7 @@ data Stream = !Atom :- Stream deriving Show
 -- the first entry is the 'shallowest' variable id. after that we continue down the tree found until we can produce
 -- an infinite family of free variables by using a stride found by the shape of the tree as a 'ray' of variables
 -- with some step
-fresh :: Support -> Stream
+fresh :: Set -> Stream
 fresh = freshTree 0 1 where
   fill !n !s = A n :- fill (n + s) s
   freshTree n s STip = fill n s
@@ -59,7 +60,7 @@ fresh = freshTree 0 1 where
                 | otherwise = id
 
 -- | Grab a single fresh variable relative to a given support
-fresh1 :: Support -> Atom
+fresh1 :: Set -> Atom
 fresh1 = freshTree 0 1 where
   freshTree n _ STip = A n
   freshTree n s (SBin d l r)
@@ -68,3 +69,6 @@ fresh1 = freshTree 0 1 where
     | otherwise = freshTree n'' s' r
     where dl=depth l;dr=depth r;n'=n+s;n''=n'+s;s'=s+s;
 
+infixr 6 +>
+(+>) :: Atom -> Set -> Set
+(+>) = insert

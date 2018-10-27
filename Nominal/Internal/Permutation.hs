@@ -10,6 +10,7 @@ module Nominal.Internal.Permutation where
 import Numeric.Natural
 import Control.Lens
 import Data.Semigroup
+import Prelude hiding (elem)
 
 -- the int is the depth of the shallowest free variable
 
@@ -58,28 +59,28 @@ unit t n s k i = case (k-1)  `divMod` 2 of
   where n'=n+s;s'=s+s
 
 -- TODO: avoid passing i
-perm :: Functor f => Natural -> (Natural -> f Natural) -> Tree -> f Tree
-perm i0 = permx 0 1 i0 i0
+elem :: Functor f => Natural -> (Natural -> f Natural) -> Tree -> f Tree
+elem i0 = elemx 0 1 i0 i0
 
-permx :: Functor f => Natural -> Natural -> Natural -> Natural -> (Natural -> f Natural) -> Tree -> f Tree
-permx n _ _ 0 f Tip             = f n <&> \n' -> bin n n' Tip Tip
-permx n _ _ 0 f (Bin _ _ j l r) = f j <&> \j' -> bin n j' l r
-permx n s i k f Tip             = f i <&> \i' -> if i == i' then Tip else unit i n s k i'
-permx n s i k f (Bin _ _ j l r) = case (k-1) `divMod` 2 of
-  (q,0) -> permx n'  s' i q f l <&> \l' -> bin n j l' r
-  (q,_) -> permx n'' s' i q f r <&> \r' -> bin n j l r'
+elemx :: Functor f => Natural -> Natural -> Natural -> Natural -> (Natural -> f Natural) -> Tree -> f Tree
+elemx n _ _ 0 f Tip             = f n <&> \n' -> bin n n' Tip Tip
+elemx n _ _ 0 f (Bin _ _ j l r) = f j <&> \j' -> bin n j' l r
+elemx n s i k f Tip             = f i <&> \i' -> if i == i' then Tip else unit i n s k i'
+elemx n s i k f (Bin _ _ j l r) = case (k-1) `divMod` 2 of
+  (q,0) -> elemx n'  s' i q f l <&> \l' -> bin n j l' r
+  (q,_) -> elemx n'' s' i q f r <&> \r' -> bin n j l r'
   where n'=n+s;n''=n'+s;s'=s+s
 
 instance Semigroup Tree where
  t0 <> t1 = go 0 1 t0 t1 where
    go _ _ Tip                Tip               = Tip
-   go n s (Bin _ _ ai al ar) Tip               = bin n (t1^.perm ai) (gol n' s' al)    (gol n'' s' ar)   where n'=n+s;n''=n'+s;s'=s+s
-   go n s Tip                (Bin _ _ _ bl br) = bin n (t1^.perm n)  (gor n' s' bl)    (gor n'' s' br)   where n'=n+s;n''=n'+s;s'=s+s
-   go n s (Bin _ _ ai al ar) (Bin _ _ _ bl br) = bin n (t1^.perm ai) (go  n' s' al bl) (go n'' s' ar br) where n'=n+s;n''=n'+s;s'=s+s
+   go n s (Bin _ _ ai al ar) Tip               = bin n (t1^.elem ai) (gol n' s' al)    (gol n'' s' ar)   where n'=n+s;n''=n'+s;s'=s+s
+   go n s Tip                (Bin _ _ _ bl br) = bin n (t1^.elem n)  (gor n' s' bl)    (gor n'' s' br)   where n'=n+s;n''=n'+s;s'=s+s
+   go n s (Bin _ _ ai al ar) (Bin _ _ _ bl br) = bin n (t1^.elem ai) (go  n' s' al bl) (go n'' s' ar br) where n'=n+s;n''=n'+s;s'=s+s
    gol _ _ Tip = Tip
-   gol n s (Bin _ _ ai al ar) = bin n (t1^.perm ai) (gol n' s' al) (gol n'' s' ar) where n'=n+s;n''=n'+s;s'=s+s
+   gol n s (Bin _ _ ai al ar) = bin n (t1^.elem ai) (gol n' s' al) (gol n'' s' ar) where n'=n+s;n''=n'+s;s'=s+s
    gor _ _ Tip = Tip
-   gor n s (Bin _ _ _ bl br) = bin n (t1^.perm n)  (gor n' s' bl) (gor n'' s' br) where n'=n+s;n''=n'+s;s'=s+s
+   gor n s (Bin _ _ _ bl br) = bin n (t1^.elem n)  (gor n' s' bl) (gor n'' s' br) where n'=n+s;n''=n'+s;s'=s+s
 
 instance Monoid Tree where
   mempty = Tip

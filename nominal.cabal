@@ -38,8 +38,10 @@ library
     Nominal.Atom
     Nominal.Class
     Nominal.Internal.Atom
+    Nominal.Internal.Map
     Nominal.Internal.Permutation
-    Nominal.Internal.Support
+    Nominal.Internal.Set
+    Nominal.Map
     Nominal.Permutation
-    Nominal.Support
+    Nominal.Set
     Nominal.Tie

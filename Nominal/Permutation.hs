@@ -13,15 +13,16 @@ module Nominal.Permutation
 , sup -- the greatest of the support, used when presenting standard cycles
 ) where
 
-import Numeric.Natural
 import Control.Lens
 import Data.List (groupBy)
 import Data.Semigroup
 import Nominal.Internal.Atom
 import Nominal.Internal.Permutation
+import Numeric.Natural
+import Prelude hiding (elem)
 
 swap :: Atom -> Atom -> Permutation
-swap (A i) (A j) = Permutation t t where t = Tip & perm j .~ i & perm i .~ j
+swap (A i) (A j) = Permutation t t where t = Tip & elem j .~ i & elem i .~ j
 
 -- | largest support member, used by 'rcycles' for extracting standard form
 sup :: Permutation -> Maybe Atom
@@ -42,7 +43,7 @@ rcycles (Permutation t0 _) = go t0 where
 
   -- mangles the tree to remove this cycle as we go
   peel :: Natural -> Natural -> Tree -> (Tree, [Atom])
-  peel m e t = case t & perm e <<.~ e of
+  peel m e t = case t & elem e <<.~ e of
     (n, t') | n == m    -> (t', [A e])
             | otherwise -> (A e :) <$> peel m n t'
 
