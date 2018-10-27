@@ -1,0 +1,44 @@
+cabal-version: 2.2
+name:          nominal
+category:      Nominal Logic
+version:       0
+license:       BSD-2-Clause OR Apache-2.0
+license-file:  LICENSE.md
+author:        Edward A. Kmett
+maintainer:    Edward A. Kmett <ekmett@gmail.com>
+stability:     provisional
+homepage:      http://github.com/ekmett/nominal/
+bug-reports:   http://github.com/ekmett/nominal/issues
+copyright:     Copyright (C) 2018 Edward A. Kmett
+synopsis:      Nominal sets
+description:   Nominal sets.
+build-type:    Simple
+
+extra-source-files:
+
+source-repository head
+  type: git
+  location: git://github.com/ekmett/nominal.git
+
+library
+  build-depends:
+    base                >= 4   && < 5,
+    containers,
+    contravariant,
+    fingertree,
+    lens,
+    transformers        >= 0.5.5 && < 0.6,
+    mtl                 >= 2.2.2 && < 2.3
+
+  ghc-options: -Wall
+  default-language: Haskell2010
+
+  exposed-modules:
+    Nominal
+    Nominal.Atom
+    Nominal.Class
+    Nominal.Internal.Atom
+    Nominal.Internal.Permutation
+    Nominal.Internal.Support
+    Nominal.Support
+    Nominal.Tie

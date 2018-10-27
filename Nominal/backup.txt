@@ -1,0 +1,486 @@
+{-# language BangPatterns #-}
+{-# language LambdaCase #-}
+{-# language TypeFamilies #-}
+{-# language EmptyCase #-}
+{-# language TypeOperators #-}
+{-# language FlexibleContexts #-}
+{-# language DefaultSignatures #-}
+{-# language PatternSynonyms #-}
+{-# language GeneralizedNewtypeDeriving #-}
+{-# language DeriveGeneric #-}
+
+module Nominal.Permutation
+( Perm
+, swap -- generator
+, rcycles, cycles, cyclic, reassemble -- traditional presentation
+, fresh -- should be able to be computed off of a support
+, inv -- invert a permutation
+
+-- , greater -- find a fresh variable > than all existing ones 
+-- , sup -- the greatest of the support, used when presenting standard cycles
+
+, Act(..), Act1(..)
+, Support
+, member
+, contains
+, pattern Empty
+, delete, insert, diff, union, intersect, singleton
+, Nominal(..) 
+
+-- internals
+, dep -- debugging
+, Term(..)
+) where
+
+import Numeric.Natural
+import Control.Lens hiding (to, from)
+import Control.Category ((>>>))
+import Data.Functor.Contravariant
+import Data.Functor.Contravariant.Divisible
+import Data.Functor.Contravariant.Generic
+import Data.List (groupBy)
+import Data.Maybe
+import Data.Proxy
+import Data.Semigroup hiding (diff)
+import GHC.Generics
+import Data.Void
+
+-- the int is the depth of the shallowest free variable
+
+-- a rather functional representation of finitely generated permutations of the naturals as trees
+-- for use by nominal sets
+data Tree = Tip | Bin !Natural !Int !Natural !Tree !Tree
+  deriving (Show)
+
+instance AsEmpty Tree where
+  _Empty = prism (const Tip) $ \case
+    Tip -> Right ()
+    t -> Left t
+
+instance Eq Tree where
+  Tip == Tip = True
+  Bin _ _ na la ra == Bin _ _ nb lb rb = na == nb && la == lb && ra == rb
+  _ == _ = False
+
+-- this puts trees in _some_ canonical order. good luck describing it
+instance Ord Tree where
+  Tip `compare` Tip = EQ
+  Bin _ _ na la ra `compare` Bin _ _ nb lb rb = compare na nb <> compare la lb <> compare ra rb
+  Tip `compare` Bin{} = LT
+  Bin{} `compare` Tip = GT
+
+-- used mostly for extracting standard cycle notation
+supTree :: Tree -> Maybe (Max Natural)
+supTree Tip = Nothing
+supTree (Bin s _ _ _ _) = Just (Max s)
+
+dep :: Tree -> Int
+dep Tip = 0
+dep (Bin _ i _ _ _) = i
+
+bin :: Natural -> Natural -> Tree -> Tree -> Tree
+bin i j l r = case supTree l <> supTree r of
+  Nothing | i == j -> Tip -- we don't exist
+          | otherwise -> Bin i 0 j l r -- we're the biggest seen so far, l and r are tips
+  Just (Max m) -> Bin m (if i == j then 0 else min (dep l) (dep r) + 1) j l r
+
+unit :: Natural -> Natural -> Natural -> Natural -> Natural -> Tree
+unit t _ _ 0 i = Bin t 1 i Tip Tip -- left and right are both free, we're the largest seen so locally
+unit t n s k i = case (k-1)  `divMod` 2 of
+  (q,0) -> Bin t 0 n (unit t n' s' q i) Tip     -- n is free
+  (q,_) -> Bin t 0 n Tip (unit t (n'+s) s' q i) -- n is free
+  where n'=n+s;s'=s+s
+
+-- TODO: avoid passing i
+perm :: Functor f => Natural -> (Natural -> f Natural) -> Tree -> f Tree
+perm i0 = permx 0 1 i0 i0
+
+permx :: Functor f => Natural -> Natural -> Natural -> Natural -> (Natural -> f Natural) -> Tree -> f Tree
+permx n _ _ 0 f Tip             = f n <&> \n' -> bin n n' Tip Tip
+permx n _ _ 0 f (Bin _ _ j l r) = f j <&> \j' -> bin n j' l r
+permx n s i k f Tip             = f i <&> \i' -> if i == i' then Tip else unit i n s k i'
+permx n s i k f (Bin _ _ j l r) = case (k-1) `divMod` 2 of
+  (q,0) -> permx n'  s' i q f l <&> \l' -> bin n j l' r
+  (q,_) -> permx n'' s' i q f r <&> \r' -> bin n j l r'
+  where n'=n+s;n''=n'+s;s'=s+s
+
+instance Semigroup Tree where
+ t0 <> t1 = go 0 1 t0 t1 where
+   go n s Tip                Tip               = Tip
+   go n s (Bin _ _ ai al ar) Tip               = bin n (t1^.perm ai) (gol n' s' al)    (gol n'' s' ar)   where n'=n+s;n''=n'+s;s'=s+s
+   go n s Tip                (Bin _ _ _ bl br) = bin n (t1^.perm n)  (gor n' s' bl)    (gor n'' s' br)   where n'=n+s;n''=n'+s;s'=s+s
+   go n s (Bin _ _ ai al ar) (Bin _ _ _ bl br) = bin n (t1^.perm ai) (go  n' s' al bl) (go n'' s' ar br) where n'=n+s;n''=n'+s;s'=s+s
+   gol n s Tip = Tip
+   gol n s (Bin _ _ ai al ar) = bin n (t1^.perm ai) (gol n' s' al) (gol n'' s' ar) where n'=n+s;n''=n'+s;s'=s+s
+   gor n s Tip = Tip
+   gor n s (Bin _ _ _ bl br) = bin n (t1^.perm n)  (gor n' s' bl) (gor n'' s' br) where n'=n+s;n''=n'+s;s'=s+s
+
+instance Monoid Tree where
+  mempty = Tip
+
+-- storing both lets us invert a permutation in O(1)
+data Perm = Perm Tree Tree
+  deriving Show
+
+instance Eq Perm where
+  Perm x _ == Perm y _ = x == y
+
+instance Ord Perm where
+  Perm x _ `compare` Perm y _ = compare x y
+
+instance AsEmpty Perm where
+  _Empty = prism (const mempty) $ \case
+    Perm Tip _ -> Right ()
+    t -> Left t
+
+inv :: Perm -> Perm
+inv (Perm s t) = Perm t s
+
+-- Num is for convenience
+newtype Atom = A Natural deriving (Eq,Num)
+
+instance Show Atom where
+  showsPrec d (A n) = showsPrec d n
+
+swap :: Atom -> Atom -> Perm
+swap (A i) (A j) = Perm t t where t = Tip & perm j .~ i & perm i .~ j
+
+class GAct f where
+  gact :: Perm -> f a -> f a
+
+instance Act c => GAct (K1 i c) where
+  gact p (K1 a) = K1 (act p a)
+
+instance GAct f => GAct (M1 i c f) where
+  gact p (M1 a) = M1 (gact p a)
+
+instance GAct V1 where
+  gact _ !v = case v of {}
+
+instance GAct U1 where
+  gact _ U1 = U1
+  
+instance (GAct f, GAct g) => GAct (f :*: g) where
+  gact p (a :*: b) = gact p a :*: gact p b
+
+instance (GAct f, GAct g) => GAct (f :+: g) where
+  gact p (L1 a) = L1 (gact p a)
+
+instance (Act1 f, GAct g) => GAct (f :.: g) where
+  gact p (Comp1 a) = Comp1 (act1 gact p a)
+
+class GAct1 f where
+  gact1 :: (Perm -> a -> a) -> Perm -> f a -> f a
+
+instance Act c => GAct1 (K1 i c) where
+  gact1 _ p (K1 a) = K1 (act p a)
+
+instance GAct1 f => GAct1 (M1 i c f) where
+  gact1 f p (M1 a) = M1 (gact1 f p a)
+
+instance GAct1 V1 where
+  gact1 _ _ !v = case v of {}
+
+instance GAct1 U1 where
+  gact1 _ _ U1 = U1
+  
+instance (GAct1 f, GAct1 g) => GAct1 (f :*: g) where
+  gact1 f p (a :*: b) = gact1 f p a :*: gact1 f p b
+
+instance (GAct1 f, GAct1 g) => GAct1 (f :+: g) where
+  gact1 f p (L1 a) = L1 (gact1 f p a)
+
+instance (Act1 f, GAct1 g) => GAct1 (f :.: g) where
+  gact1 f p (Comp1 a) = Comp1 (act1 (gact1 f) p a)
+
+instance GAct1 Par1 where
+  gact1 f p (Par1 a) = Par1 (f p a)
+
+instance Act1 f => GAct1 (Rec1 f) where
+  gact1 f p (Rec1 a) = Rec1 (act1 f p a)
+
+class Act s where
+  act :: Perm -> s -> s
+  default act :: (Generic s, GAct (Rep s)) => Perm -> s -> s
+  act p = to . gact p . from
+
+instance Act Atom where 
+  act (Perm t _) (A i) = A (t^.perm i)
+
+instance Act Perm where
+  -- using this action so we can be nominal
+  act p t = inv p <> t <> p
+
+class Act1 f where
+  act1 :: (Perm -> s -> s) -> Perm -> f s -> f s
+  default act1 :: (Generic1 f, GAct1 (Rep1 f)) => (Perm -> s -> s) -> Perm -> f s -> f s
+  act1 f p = to1 . gact1 f p . from1
+
+instance Act1 Proxy
+instance Act1 [] 
+instance Act1 Maybe
+
+instance Semigroup Perm where
+  Perm a b <> Perm c d = Perm (a <> c) (d <> b)
+
+instance Monoid Perm where
+  mempty = Perm Tip Tip
+
+data Stream = !Atom :- Stream
+  deriving Show
+
+-- finds an infinite sequence of variables that do not participate in the permutation, placed close to the root
+-- the first entry is the 'shallowest' variable id. after that we continue down the tree found until we can produce
+-- an infinite family of free variables by using a stride found by the shape of the tree as a 'ray' of variables
+-- with some step
+
+-- grab a supply of fresh variables relative to a given support
+fresh :: Support -> Stream
+fresh = freshTree 0 1 where
+  freshTree n s STip = fill n s where fill !n !s = A n :- fill (n + s) s
+  freshTree n s (SBin d l r) 
+    | dl <= dr = tweak (freshTree n' s' l) 
+    | otherwise = tweak (freshTree n'' s' r)
+    where dl=depth l;dr=depth r;n'=n+s;n''=n'+s;s'=s+s;
+           -- grab opportunistic fresh variables near the root on the way down
+          tweak | d == 0 = (A n :-)
+                | otherwise = id
+
+-- grab a single fresh variable relative to a given support
+fresh1 :: Support -> Atom
+fresh1 = freshTree 0 1 where
+  freshTree n s STip = A n
+  freshTree n s (SBin d l r) 
+    | d == 0 = A n 
+    | dl <= dr = freshTree n' s' l
+    | otherwise = freshTree n'' s' r
+    where dl=depth l;dr=depth r;n'=n+s;n''=n'+s;s'=s+s;
+
+-- modulus of continuity, used for extracting standard form
+sup :: Perm -> Maybe Atom
+sup (Perm t _) = A . getMax <$> supTree t
+
+-- all n >= greater xs do not participate. This is the start of the smallest "ray" of step size 1
+greater :: Perm -> Atom
+greater (Perm t _) = A $ maybe 0 (succ . getMax) (supTree t)
+
+-- this is not quite natural order, as its easiest for me to find the largest element and work backwards.
+-- for natural order, reverse the list of cycles
+rcycles :: Perm -> [[Atom]]
+rcycles (Perm t0 _) = go t0 where
+  go t = case supTree t of
+    Nothing -> []
+    Just (Max m) -> case peel m m t of
+      (t',xs) -> xs : go t'
+
+  -- mangles the tree to remove this cycle as we go
+  peel :: Natural -> Natural -> Tree -> (Tree, [Atom])
+  peel m e t = case t & perm e <<.~ e of
+    (n, t') | n == m    -> (t', [A e])
+            | otherwise -> (A e :) <$> peel m n t'
+
+-- standard cyclic representation of a permutation, broken into parts
+cycles :: Perm -> [[Atom]]
+cycles = reverse . rcycles
+
+-- standard cyclic representation of a permutation, smashed flat
+cyclic :: Perm -> [Atom]
+cyclic = concat . cycles
+
+-- reassemble takes a standard cyclic representation smashed flat and reassembles the cycles
+-- reassemble . cyclic = cycles
+reassemble :: [Atom] -> [[Atom]] 
+reassemble = groupBy (\(A x) (A y) -> x > y)
+
+infixr 6 :><
+data Tie a = Atom :>< a
+  deriving (Show) -- TODO: fix Eq to be nominal
+
+infixr 6 +>
+(+>) :: Atom -> Support -> Support
+(+>) = insert
+
+instance (Eq a, Nominal a) => Eq (Tie a) where
+  a :>< as == b :>< bs = act (swap c a) as == act (swap c b) bs where
+    c = fresh1 (a +> b +> supp as <> supp bs)
+
+instance Act a => Act (Tie a) where
+  act s (a :>< b) = act s a :>< act s b
+
+newtype Supported a = Supported { getSupported :: a -> Support }
+
+support :: Nominal a => Supported a
+support = Supported supp
+
+instance Contravariant Supported where
+  contramap f (Supported g) = Supported (g . f)
+
+instance Divisible Supported where
+  conquer = Supported $ \_ -> mempty
+  divide f (Supported g) (Supported h) = Supported $ \a -> case f a of
+    (b, c) -> g b <> h c
+
+instance Decidable Supported where
+  lose f = Supported $ absurd . f 
+  choose f (Supported g) (Supported h) = Supported $ \a -> case f a of
+    Left b -> g b
+    Right c -> h c 
+
+class Act s => Nominal s where
+  supp :: s -> Support
+  default supp :: Deciding Nominal s => s -> Support
+  supp = getSupported $ deciding (Proxy :: Proxy Nominal) (Supported supp)
+
+instance Nominal a => Nominal (Tie a) where
+  supp (a :>< b) = supp b & contains a .~ False
+
+instance Nominal Perm where
+  supp (Perm t0 _) = go t0 where
+    go Tip = STip
+    go (Bin _ i _ l r) = SBin i (go l) (go r)
+
+instance Nominal Atom where
+  supp = singleton
+
+-- Set Atom represented in a form that zips nicely with the trees above
+
+data Support = STip | SBin !Int !Support !Support -- int is the depth of the shallowest free variable 
+
+depth :: Support -> Int
+depth STip = 0
+depth (SBin i _ _) = i
+
+sbin :: Bool -> Support -> Support -> Support
+sbin False STip STip = STip
+sbin t l r  = SBin (if t then 0 else depth l + depth r + 1) l r
+
+union :: Support -> Support -> Support
+union STip a = a
+union a STip = a
+union (SBin i li ri) (SBin j lj rj) = sbin (i == 0 || j == 0) (union li lj) (union ri rj)
+
+instance Semigroup Support where
+  (<>) = union
+
+instance Monoid Support where
+  mempty = STip
+
+intersect :: Support -> Support -> Support
+intersect STip _ = STip
+intersect _ STip = STip
+intersect (SBin i li ri) (SBin j lj rj) = sbin (i == 0 && j == 0) (intersect li lj) (intersect ri rj)
+
+diff :: Support -> Support -> Support
+diff a STip = a
+diff STip _ = STip
+diff (SBin i li ri) (SBin j lj rj) = sbin (i == 0 && j /= 0) (diff li lj) (diff ri rj)
+
+(\\) :: Support -> Support -> Support
+(\\) = diff
+
+member :: Atom -> Support -> Bool
+member (A i) = go i where
+  go _ STip = False
+  go 0 (SBin i _ _) = i == 0
+  go k (SBin _ l r) = case (k - 1) `divMod` 2 of
+    (q,0) -> go q l
+    (q,_) -> go q r
+
+delete :: Atom -> Support -> Support
+delete (A i) = go i where
+  go _ STip = STip
+  go 0 (SBin _ l r) = sbin False l r
+  go k (SBin i l r) = case (k - 1) `divMod` 2 of
+    (q,0) -> sbin (i == 0) (go q l) r
+    (q,_) -> sbin (i == 0) l (go q r)
+
+insert :: Atom -> Support -> Support
+insert (A i) = go i where
+  go k STip = singleton (A k)
+  go 0 (SBin _ l r) = sbin True l r
+  go k (SBin i l r) = case (k - 1) `divMod` 2 of
+    (q,0) -> sbin (i == 0) (go q l) r
+    (q,_) -> sbin (i == 0) l (go q r)
+
+singleton :: Atom -> Support
+singleton (A k0) = go k0 where
+  go 0 = SBin 0 STip STip
+  go k = case (k-1) `divMod` 2 of
+    (q,0) -> sbin False (go q) STip
+    (q,_) -> sbin False STip (go q)
+  
+-- lens classes
+type instance Index Support = Atom
+instance Contains Support where
+  contains (A i) = go i where
+    go k f STip = f False <&> \t -> if t then singleton (A k) else STip
+    go 0 f (SBin i l r) = f (i == 0) <&> \t -> sbin t l r
+    go k f (SBin i l r) = case (k - 1) `divMod` 2 of
+      (q,0) -> go q f l <&> \ l' -> sbin (i == 0) l' r
+      (q,_) -> go q f r <&> \ r' -> sbin (i == 0) l r'
+
+instance AsEmpty Support where
+  _Empty = prism (const STip) $ \case
+    STip -> Right ()
+    t    -> Left t
+
+(#) :: Nominal a => Atom -> a -> Bool
+a # x = member a (supp x) -- could be more efficient
+
+data Term
+  = Var Atom
+  | App Term Term
+  | Lam (Tie Term)
+  deriving (Eq, Generic)
+
+instance Act Term 
+instance Nominal Term
+
+iota :: Tie Atom -> Maybe Atom
+iota (a :>< b) 
+  | a == b    = Nothing
+  | otherwise = Just b
+
+
+-- Tie distributes over everything
+
+-- nominal
+ziptie :: (Nominal x, Nominal y) => Tie x -> Tie y -> Tie (x, y)
+ziptie (a :>< as) (b :>< bs) = c :>< (act (swap c a) as, act (swap c b) bs) where
+  c = fresh1 (a +> b +> supp as <> supp bs)
+
+-- can i use compiling to categories?
+
+-- nominal
+unziptie :: Nom (Tie (x, y)) (Tie x, Tie y)
+unziptie = Nom ((a :>< (x,y)) = (a :>< x, a :>< y))
+
+-- nominal arrow
+zipe : Nom (Either (Tie x) (Tie y)) (Tie (Either x y))
+zipe (Left (a :>< as)) = a :>< Left as
+zipe (Right (a :>< as)) = a :>< Right as
+
+-- nominal arrow
+unzipe :: Tie (Either x y) -> Either (Tie x) (Tie y)
+unzipe (a :>< Left as) = Left (a :>< as)
+unzipe (a :>< Right bs) = Left (a :>< bs)
+
+data Nom a b where
+  Nom :: (Nominal a, Nominal b) => { runNum :: a -> b } -> Nom a b
+
+idAtom :: Nom Atom Atom
+idAtom = Nom id
+
+instance (Nominal a, Nominal b) => Act (Nom a b) where
+  act p (Nom f) = Nom (act p . f . act (inv p))
+
+-- Nom a b -> a -> b
+
+-- the only nominal arrow from Atom -> Atom is id
+
+
+-- eval :: Nom (Nom a b, a) b
+
+-- data Disj a = Disj a Atom
+
+
