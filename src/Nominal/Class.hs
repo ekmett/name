@@ -21,6 +21,7 @@ module Nominal.Class
 import Control.Lens hiding (to, from, (#))
 import Data.Functor.Contravariant.Generic
 import Data.Proxy
+import Data.Void
 import GHC.Generics
 import Nominal.Internal.Atom
 import Nominal.Internal.Permutation
@@ -118,6 +119,14 @@ instance Perm Set where
       | otherwise = del n'' s' r $ del n' s' l $ delete (A j) t
       where n'=n+s;n''=n'+s;s'=s+s
 
+instance Perm Void
+instance Perm ()
+instance (Perm a, Perm b) => Perm (a, b)
+instance (Perm a, Perm b) => Perm (Either a b)
+instance Perm a => Perm [a]
+instance Perm a => Perm (Maybe a)
+instance Perm (Proxy a)
+
 class Perm1 f where
   perm1 :: (Permutation -> s -> s) -> Permutation -> f s -> f s
   default perm1 :: (Generic1 f, GPerm1 (Rep1 f)) => (Permutation -> s -> s) -> Permutation -> f s -> f s
@@ -126,6 +135,8 @@ class Perm1 f where
 instance Perm1 Proxy
 instance Perm1 [] 
 instance Perm1 Maybe
+instance Perm a => Perm1 ((,)a)
+instance Perm a => Perm1 (Either a)
 
 class Perm s => Nominal s where
   supp :: s -> Set
@@ -139,11 +150,25 @@ instance Nominal Permutation where
     go Tip = STip
     go (Bin _ i _ l r) = SBin i (go l) (go r)
 
+instance Nominal a => Nominal [a]
+
+instance Nominal a => Nominal (Maybe a)
+
+instance Nominal (Proxy a) where
+  supp = mempty
+
 instance Nominal Atom where
   supp = singleton
 
+instance Nominal Void
+
+instance Nominal ()
+
 instance Nominal Set where
   supp = id
+
+instance (Nominal a, Nominal b) => Nominal (a, b)
+instance (Nominal a, Nominal b) => Nominal (Either a b)
 
 (#) :: Nominal a => Atom -> a -> Bool
 a # x = member a (supp x) -- could be more efficient
@@ -162,6 +187,7 @@ support = Supported supp
 --
 class (Nominal a, Semigroup a) => NominalSemigroup a where
 instance NominalSemigroup Set
+instance (NominalSemigroup a, NominalSemigroup b) => NominalSemigroup (a, b)
   
 -- | perm is a unital group action
 --
@@ -171,3 +197,4 @@ instance NominalSemigroup Set
 -- @
 class (NominalSemigroup a, Monoid a) => NominalMonoid a
 instance NominalMonoid Set
+instance (NominalMonoid a, NominalMonoid b) => NominalMonoid (a, b)
