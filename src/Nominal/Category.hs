@@ -23,14 +23,16 @@ import Prelude
   , Monoid(..), Semigroup(..)
   )
 
--- Here i don't need Ob constraints until i get to things that
--- touch the environment in Cartesian so i delay incurring any costs for
--- that part til i get there
-
 type (*) = (,)
 type (+) = Either
 
 data Nom a b = Nom Set (a -> b)
+
+instance Category Nom where
+  id = Nom mempty id
+  {-# inline id #-}
+  Nom s f . Nom t g = Nom (s<>t) (f.g)
+  {-# inline (.) #-}
 
 instance (Perm a, Perm b) => Perm (Nom a b) where
   perm p (Nom s f) = Nom (perm p s) (perm p f)
@@ -44,36 +46,23 @@ suppNom (Nom s _) = s
 runNom :: Nom a b -> a -> b
 runNom (Nom _ f) = f
 
--- used to construct nominal morphisms that have no dependencies, unsafe
 nom_ :: (a -> b) -> Nom a b
 nom_ = Nom mempty
 
--- generally the names are chosen to line up with conal's plugin
--- we can be compatible with 'base's Category this way
-
-instance Category Nom where
-  id = Nom mempty id
-  {-# inline id #-}
-  Nom s f . Nom t g = Nom (s<>t) (f.g)
-  {-# inline (.) #-}
-
-class Category k => Cartesian k where
+class Category k => MonoidalP k where
   (***)   :: k a b -> k c d -> k (a*c) (b*d)
   first   :: k a b -> k (a*c) (b*c)
   second  :: k c d -> k (a*c) (a*d)
   swapP   :: k (a*b) (b*a)
   lassocP :: k (a*(b*c)) ((a*b)*c)
   rassocP :: k ((a*b)*c) (a*(b*c))
-  exl     :: k (a*b) a
-  exr     :: k (a*b) b
-  dup     :: k a (a*a)
   lunit   :: k a (()*a)
   lcounit :: k (()*a) a
   runit   :: k a (a*())
   rcounit :: k (a*()) a
   it      :: k a ()
 
-instance Cartesian (->) where
+instance MonoidalP (->) where
   (***) f g (a,c) = (f a, g c)
   {-# inline (***) #-}
   first f (a, b) = (f a, b)
@@ -86,12 +75,6 @@ instance Cartesian (->) where
   {-# inline lassocP #-}
   rassocP ((a,b),c) = (a,(b,c))
   {-# inline rassocP #-}
-  exl = Prelude.fst
-  {-# inline exl #-}
-  exr = Prelude.snd
-  {-# inline exr #-}
-  dup a = (a,a)
-  {-# inline dup #-}
   lunit a = ((),a)
   {-# inline lunit #-}
   lcounit = Prelude.snd
@@ -103,26 +86,19 @@ instance Cartesian (->) where
   it _ = ()
   {-# inline it #-}
 
-instance Cartesian Nom where
+instance MonoidalP Nom where
   Nom s f *** Nom t g = Nom (s <> t) (f *** g)
   {-# inline (***) #-}
   first (Nom s f) = Nom s (first f)
   {-# inline first #-}
   second (Nom s f) = Nom s (second f)
   {-# inline second #-}
-
   swapP = nom_ swapP
   {-# inline swapP #-}
   lassocP = nom_ lassocP
   {-# inline lassocP #-}
   rassocP = nom_ rassocP
   {-# inline rassocP #-}
-  exl = nom_ exl
-  {-# inline exl #-}
-  exr = nom_ exr
-  {-# inline exr #-}
-  dup = nom_ dup
-  {-# inline dup #-}
   lunit = nom_ lunit
   {-# inline lunit #-}
   lcounit = nom_ lcounit
@@ -134,23 +110,45 @@ instance Cartesian Nom where
   it = nom_ it
   {-# inline it #-}
 
-class Category k => Cocartesian k where
+class MonoidalP k => Cartesian k where
+  exl :: k (a*b) a
+  exr :: k (a*b) b
+  dup :: k a (a*a)
+
+(&&&) :: Cartesian k => k a b -> k a c -> k a (b*c)
+f &&& g = (f *** g) . dup
+{-# inline (&&&) #-}
+
+instance Cartesian (->) where
+  exl = Prelude.fst
+  {-# inline exl #-}
+  exr = Prelude.snd
+  {-# inline exr #-}
+  dup a = (a,a)
+  {-# inline dup #-}
+
+instance Cartesian Nom where
+  exl = nom_ exl
+  {-# inline exl #-}
+  exr = nom_ exr
+  {-# inline exr #-}
+  dup = nom_ dup
+  {-# inline dup #-}
+
+class Category k => MonoidalS k where
   (+++)    :: k a b -> k c d -> k (a+c) (b+d)
   left     :: k a b -> k (a+c) (b+c)
   right    :: k c d -> k (a+c) (a+d)
   swapS    :: k (a+b) (b+a)
   lassocS  :: k (a+(b+c)) ((a+b)+c)
   rassocS  :: k ((a+b)+c) (a+(b+c))
-  inl      :: k a (a+b)
-  inr      :: k b (a+b)
-  jam      :: k (a+a) a
   lunitS   :: k (Void+a) a
   lcounitS :: k a (Void+a)
   runitS   :: k (a+Void) a
   rcounitS :: k a (a+Void)
   ti       :: k Void a
 
-instance Cocartesian (->) where
+instance MonoidalS (->) where
   (+++) = (Arrow.+++)
   {-# INLINE (+++) #-}
   left = Arrow.left
@@ -167,12 +165,6 @@ instance Cocartesian (->) where
   rassocS (Left (Right b)) = Right (Left b)
   rassocS (Right c) = Right (Right c)
   {-# inline rassocS #-}
-  inl = Left
-  {-# inline inl #-}
-  inr = Right
-  {-# inline inr #-}
-  jam = Prelude.either id id
-  {-# inline jam #-}
   lunitS = Prelude.either ti id
   {-# inline lunitS #-}
   lcounitS = Right
@@ -184,7 +176,7 @@ instance Cocartesian (->) where
   ti = absurd
   {-# inline ti #-}
 
-instance Cocartesian Nom where
+instance MonoidalS Nom where
   Nom s f +++ Nom t g = Nom (s <> t) (f +++ g)
   {-# INLINE (+++) #-}
   left (Nom s f) = Nom s (left f)
@@ -197,12 +189,6 @@ instance Cocartesian Nom where
   {-# inline lassocS #-}
   rassocS = nom_ rassocS
   {-# inline rassocS #-}
-  inl = nom_ inl
-  {-# inline inl #-}
-  inr = nom_ inr
-  {-# inline inr #-}
-  jam = nom_ jam
-  {-# inline jam #-}
   lunitS = nom_ lunitS
   {-# inline lunitS #-}
   lcounitS = nom_ lcounitS
@@ -213,6 +199,56 @@ instance Cocartesian Nom where
   {-# inline rcounitS #-}
   ti = nom_ absurd
   {-# inline ti #-}
+
+class MonoidalS k => Cocartesian k where
+  inl      :: k a (a+b)
+  inr      :: k b (a+b)
+  jam      :: k (a+a) a
+
+(|||) :: Cocartesian k => k a c -> k b c -> k (Either a b) c
+f ||| g = jam . (f +++ g)
+
+factorr :: (Cartesian k, Cocartesian k) => k ((u*b)+(v*b)) ((u+v)*b)
+factorr = first inl ||| first inr
+{-# inline factorr #-}
+
+factorl :: (Cartesian k, Cocartesian k) => k ((a*b)+(a*c)) (a*(b+c))
+factorl = second inl ||| second inr
+{-# inline factorl #-}
+
+instance Cocartesian (->) where
+  inl = Left
+  {-# inline inl #-}
+  inr = Right
+  {-# inline inr #-}
+  jam = Prelude.either id id
+  {-# inline jam #-}
+
+instance Cocartesian Nom where
+  inl = nom_ inl
+  {-# inline inl #-}
+  inr = nom_ inr
+  {-# inline inr #-}
+  jam = nom_ jam
+  {-# inline jam #-}
+
+class (Cartesian k, Cocartesian k) => Distributive k where
+  distr :: k ((u+v)*b) ((u*b)+(v*b))
+  distl :: k (a*(u+v)) ((a*u)+(a*v))
+
+instance Distributive (->) where
+  distr (Left u,b) = Left (u,b)
+  distr (Right v,b) = Right (v,b)
+  {-# inline distr #-}
+  distl (a,Left u) = Left (a,u)
+  distl (a,Right v) = Right (a,v)
+  {-# inline distl #-}
+
+instance Distributive Nom where
+  distr = nom_ distr
+  {-# inline distr #-}
+  distl = nom_ distl
+  {-# inline distl #-}
 
 class Cartesian k => CCC k where
   apply     :: k (k a b * a) b
@@ -301,9 +337,11 @@ data Tensor v a = Tensor v a -- v should be 'invisible' within Nom, I give no No
 
 instance Perm a => Perm (Tensor v a) where
   perm p (Tensor v a) = Tensor v (perm p a) -- v many copies of a?
+  {-# inline perm #-}
 
 instance Nominal a => Nominal (Tensor v a) where
   supp (Tensor _ a) = supp a
+  {-# inline supp #-}
 
 class Cartesian k => FinitelyTensored k where -- only needs closed monoidal
   mapTensor :: k a b -> k (v ⊙ a) (v ⊙ b)
@@ -312,26 +350,34 @@ class Cartesian k => FinitelyTensored k where -- only needs closed monoidal
 
 instance FinitelyTensored Nom where
   mapTensor (Nom s f) = Nom s (fmap f)
+  {-# inline mapTensor #-}
   tensor (Nom s f) = Nom s . tensor f
+  {-# inline tensor #-}
   untensor f = Nom (foldMap (suppNom . f) every) $ \(Tensor v a) -> runNom (f v) a
+  {-# inline untensor #-}
 
 instance FinitelyTensored (->) where
   mapTensor = fmap
+  {-# inline mapTensor #-}
   tensor f v = f . Tensor v
+  {-# inline tensor #-}
   untensor f (Tensor v a) = f v a
+  {-# inline untensor #-}
 
 type (⫛) = Power
-data Power v a = Power { runPower :: v -> a }
-  deriving (Functor)
+data Power v a = Power { runPower :: v -> a } deriving Functor
 
 instance (Finite v, Eq a) => Eq (Power v a) where
   Power f == Power g = fmap f every == fmap g every
+  {-# inline (==) #-}
 
 instance Perm a => Perm (Power v a) where
   perm p (Power f) = Power (perm p . f)
+  {-# inline perm #-}
 
 instance (Finite v, Nominal a) => Nominal (Power v a) where
   supp (Power f) = foldMap (supp . f) every
+  {-# inline supp #-}
 
 class Cartesian k => FinitelyPowered k where
   mapPower :: k a b -> k (v ⫛ a) (v ⫛ b)
@@ -340,10 +386,16 @@ class Cartesian k => FinitelyPowered k where
 
 instance FinitelyPowered (->) where
   mapPower = fmap
+  {-# inline mapPower #-}
   power f v a = runPower (f a) v
+  {-# inline power #-}
   unpower f a = Power $ \v -> f v a
+  {-# inline unpower #-}
 
 instance FinitelyPowered Nom where
   mapPower (Nom s f) = Nom s (fmap f)
+  {-# inline mapPower #-}
   power (Nom s f) v = Nom s $ \a -> runPower (f a) v
+  {-# inline power #-}
   unpower f = Nom (foldMap (suppNom . f) every) $ \ a -> Power $ \v -> runNom (f v) a
+  {-# inline unpower #-}
