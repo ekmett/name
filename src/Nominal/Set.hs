@@ -6,38 +6,18 @@
 {-# language PatternSynonyms #-}
 
 module Nominal.Set
-( Supported(..)
-, Set
-, member
-, contains
-, pattern Empty
-, delete, insert, diff, union, intersect, singleton
--- fresh variables
+( Set
+-- * operations
+, SetLike(..), (+>),(\/)
+-- * fresh variables
 , Stream(..), fresh, fresh1
-, (+>)
 ) where
 
 import Control.Lens
-import Data.Functor.Contravariant.Divisible
-import Data.Void
+import Nominal.Class
 import Nominal.Internal.Atom
-import Nominal.Internal.Set
-
-newtype Supported a = Supported { getSupported :: a -> Set }
-
-instance Contravariant Supported where
-  contramap f (Supported g) = Supported (g . f)
-
-instance Divisible Supported where
-  conquer = Supported $ \_ -> mempty
-  divide f (Supported g) (Supported h) = Supported $ \a -> case f a of
-    (b, c) -> g b <> h c
-
-instance Decidable Supported where
-  lose f = Supported $ absurd . f 
-  choose f (Supported g) (Supported h) = Supported $ \a -> case f a of
-    Left b -> g b
-    Right c -> h c 
+import qualified Nominal.Internal.Set as Set
+import Nominal.Internal.Set (Set(..), depth)
 
 data Stream = !Atom :- Stream deriving Show
 
@@ -69,6 +49,52 @@ fresh1 = freshTree 0 1 where
     | otherwise = freshTree n'' s' r
     where dl=depth l;dr=depth r;n'=n+s;n''=n'+s;s'=s+s;
 
+-- not known at the right point
+
+-- (<>) = union, mempty = bottom
+class (Index a ~ Atom, Contains a, NominalMonoid a) => SetLike a where
+  insert :: Atom -> a -> a
+  insert a = contains a .~ True
+  {-# inline insert #-}
+
+  delete :: Atom -> a -> a
+  delete a = contains a .~ False
+  {-# inline delete #-}
+
+  member :: Atom -> a -> Bool
+  member = view . contains
+  {-# inline member #-}
+
+  singleton :: Atom -> a
+  singleton a = insert a mempty
+  {-# inline singleton #-}
+
+  (/\) :: a -> a -> a
+
+  (\\) :: a -> a -> a
+  p \\ q = p /\ xor p q
+  {-# inline (\\) #-}
+
+  xor :: a -> a -> a
+  xor p q = (p \\ q) \/ (q \\ p)
+  {-# inline xor #-}
+  {-# minimal (/\), (xor | (\\)) #-}
+
+infixr 7 /\
 infixr 6 +>
-(+>) :: Atom -> Set -> Set
+infixr 5 \/
+
+(+>) :: SetLike a => Atom -> a -> a
 (+>) = insert
+
+(\/) :: SetLike a => a -> a -> a
+(\/) = (<>)
+
+instance SetLike Set where
+  insert = Set.insert
+  delete = Set.delete
+  member = Set.member
+  singleton = Set.singleton
+  (/\) = Set.intersect
+  (\\) = Set.diff
+  xor = Set.xor

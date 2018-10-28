@@ -20,30 +20,15 @@ source-repository head
   type: git
   location: git://github.com/ekmett/nominal.git
 
+-- this requires concat, which isn't on hackage
 flag concat
   default: False
   manual: True
   description: compile with (experimental) concat support
 
-library plugin
-  if !flag(concat)
-    buildable: False
-  else
-    build-depends: 
-      base,
-      concat-plugin, 
-      concat-classes,
-      constraints,
-      nominal
-    exposed-modules:
-      Nominal.Category
-    hs-source-dirs: plugin
-    ghc-options: -Wall
-    default-language: Haskell2010
-
 library
   build-depends:
-    base                >= 4   && < 5,
+    base                >= 4 && < 5,
     containers,
     contravariant,
     fingertree,
@@ -63,7 +48,25 @@ library
     Nominal.Internal.Map
     Nominal.Internal.Permutation
     Nominal.Internal.Set
+    Nominal.Logic
     Nominal.Map
     Nominal.Permutation
     Nominal.Set
+    Nominal.Support
     Nominal.Tie
+
+library plugin
+  if !flag(concat)
+    buildable: False
+  else
+    build-depends:
+      base,
+      concat-plugin,
+      concat-classes,
+      constraints,
+      nominal
+    exposed-modules:
+      Nominal.Category
+    hs-source-dirs: plugin
+    ghc-options: -Wall
+    default-language: Haskell2010
