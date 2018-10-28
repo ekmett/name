@@ -1,17 +1,20 @@
 module Nominal
   ( module Nominal.Atom
   , module Nominal.Class
+  , module Nominal.Logic
   -- , module Nominal.Map -- designed for qualified import
   , module Nominal.Permutation
-  -- , module Nominal.Set
+  , module Nominal.Set
+  , module Nominal.Support
   , module Nominal.Tie
   , Map
-  , Set
   ) where
 
 import Nominal.Atom
 import Nominal.Class
-import Nominal.Map -- designed for qualified import
+import Nominal.Logic
+import Nominal.Map
 import Nominal.Permutation
 import Nominal.Set
+import Nominal.Support
 import Nominal.Tie
