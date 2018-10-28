@@ -46,6 +46,7 @@ library
     Nominal.Class
     Nominal.Internal.Atom
     Nominal.Internal.Map
+    Nominal.Internal.Logic
     Nominal.Internal.Permutation
     Nominal.Internal.Set
     Nominal.Logic

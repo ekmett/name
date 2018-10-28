@@ -8,7 +8,7 @@
 module Nominal.Set
 ( Set
 -- * operations
-, SetLike(..), (+>),(\/)
+, SetLike(..), (+>), (\/), bottom
 -- * fresh variables
 , Stream(..), fresh, fresh1
 ) where
@@ -89,6 +89,9 @@ infixr 5 \/
 
 (\/) :: SetLike a => a -> a -> a
 (\/) = (<>)
+
+bottom :: SetLike a => a
+bottom = mempty 
 
 instance SetLike Set where
   insert = Set.insert
