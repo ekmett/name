@@ -308,14 +308,20 @@ instance CCC Nom where
 -- convenient for writing general purpose code abstract whether it is an arrow or in Nom
 class (CCC k, Cocartesian k) => N k where
   nom :: Set -> (a -> b) -> k a b -- construct a nominal arrow with manual support, unsafe
+  -- requires type applications
+  con :: (k ~ (->) => r) -> r -> k a b
 
 instance N (->) where
   nom _ = id
   {-# inline nom #-}
+  con x _ = x
+  {-# inline con #-}
 
 instance N Nom where
   nom = Nom
   {-# inline conlike nom #-}
+  con _ x = x
+  {-# inline con #-}
 
 -- Nom is not a tensored category over Hask, so we don't get copowers in general, merely finite ones
 
