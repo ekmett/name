@@ -67,15 +67,28 @@ unzipe (a :>< Left as) = Left (a :>< as)
 unzipe (a :>< Right bs) = Right (a :>< bs)
 
 {-
+-- TODO: build these as a proper category in their own right
+-- and then see if i can't get concat to use _my_ stuff instead
 data Nom a b where
-  Nom :: (Nominal a, Nominal b) => { runNum :: a -> b } -> Nom a b
+  Nom :: (Nominal a, Nominal b) => Set -> (a -> b) -> Nom a b
+
+runNom :: Nom a b -> a -> b
+
+class N k where
+  nom :: Set -> (a -> b) -> k a b
+
+instance N (->) where
+  nom _ = id
+
+instance N Nom where
+  nom = Nom
 
 idAtom :: Nom Atom Atom
 idAtom = Nom id
 
-instance (Nominal a, Nominal b) => Act (Nom a b) where
-  act p (Nom f) = Nom (act p . f . act (inv p))
+instance (Nominal a, Nominal b) => Perm (Nom a b) where
+  perm p (Nom s f) = Nom (perm p s) (perm p f)
+
+instance (Nominal a, Nominal b) => Nominal (Nom a b) where
+  supp (Nom s _) = s 
 -}
-
-
-

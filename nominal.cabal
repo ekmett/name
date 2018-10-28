@@ -43,6 +43,7 @@ library
   exposed-modules:
     Nominal
     Nominal.Atom
+    Nominal.Category
     Nominal.Class
     Nominal.Internal.Atom
     Nominal.Internal.Map
@@ -68,7 +69,7 @@ library plugin
       constraints,
       nominal
     exposed-modules:
-      Nominal.Category
+      Nominal.Plugin
     hs-source-dirs: plugin
     ghc-options: -Wall
     default-language: Haskell2010
