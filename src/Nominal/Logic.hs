@@ -20,6 +20,7 @@ module Nominal.Logic
 ) where
 
 import Control.Lens
+import Data.Semigroup
 import GHC.Generics
 import Nominal.Atom
 import Nominal.Class
@@ -76,6 +77,12 @@ instance SetLike Prop where
   {-# inline xor #-}
 
 instance Semigroup Prop where
+  stimes n m = case compare n 0 of
+    LT -> neg m
+    EQ -> mempty
+    GT -> m
+  {-# inline stimes #-}
+
   Finite p   <> Finite q   = Finite   (p \/ q)
   Finite p   <> Cofinite q = Finite   (q \\ p)
   Cofinite p <> Finite q   = Finite   (p \\ q)

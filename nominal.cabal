@@ -54,6 +54,7 @@ library
     Nominal.Permutation
     Nominal.Set
     Nominal.Support
+    Nominal.Suspension
     Nominal.Tie
 
 library plugin

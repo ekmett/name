@@ -17,9 +17,10 @@
 
 module Nominal.Internal.Permutation where
 
-import Numeric.Natural
 import Control.Lens
+import Data.Maybe
 import Data.Semigroup
+import Numeric.Natural
 import Prelude hiding (elem)
 
 -- the int is the depth of the shallowest free variable
@@ -51,6 +52,14 @@ supTree :: Tree -> Maybe (Max Natural)
 supTree Tip = Nothing
 supTree (Bin s _ _ _ _) = Just (Max s)
 
+-- squaring trees is cheap
+sqx :: Tree -> Natural -> Natural -> Tree -> Tree
+sqx _ _ _ Tip = Tip
+sqx t1 n s (Bin _ _ ai al ar) = bin n (t1^.elem ai) (sqx t1 n' s' al) (sqx t1 n'' s' ar) where n'=n+s;n''=n'+s;s'=s+s
+
+squareTree :: Tree -> Tree
+squareTree t0 = sqx t0 0 1 t0
+
 dep :: Tree -> Int
 dep Tip = 0
 dep (Bin _ i _ _ _) = i
@@ -81,16 +90,32 @@ elemx n s i k f (Bin _ _ j l r) = case (k-1) `divMod` 2 of
   (q,_) -> elemx n'' s' i q f r <&> \r' -> bin n j l r'
   where n'=n+s;n''=n'+s;s'=s+s
 
+eval :: Tree -> Natural -> Natural
+eval t0 i0 = fromMaybe i0 $ evalx t0 i0
+
+evalx :: Tree -> Natural -> Maybe Natural -- returns "failure" on tip reads, useful elsewhere
+evalx Tip _ = Nothing
+evalx (Bin _ _ j _ _) 0 = Just j
+evalx (Bin _ _ _ l r) k = case (k-1) `divMod` 2 of
+  (q,0) -> evalx l q
+  (q,_) -> evalx r q
+
 instance Semigroup Tree where
- t0 <> t1 = go 0 1 t0 t1 where
-   go _ _ Tip                Tip               = Tip
-   go n s (Bin _ _ ai al ar) Tip               = bin n (t1^.elem ai) (gol n' s' al)    (gol n'' s' ar)   where n'=n+s;n''=n'+s;s'=s+s
-   go n s Tip                (Bin _ _ _ bl br) = bin n (t1^.elem n)  (gor n' s' bl)    (gor n'' s' br)   where n'=n+s;n''=n'+s;s'=s+s
-   go n s (Bin _ _ ai al ar) (Bin _ _ _ bl br) = bin n (t1^.elem ai) (go  n' s' al bl) (go n'' s' ar br) where n'=n+s;n''=n'+s;s'=s+s
-   gol _ _ Tip = Tip
-   gol n s (Bin _ _ ai al ar) = bin n (t1^.elem ai) (gol n' s' al) (gol n'' s' ar) where n'=n+s;n''=n'+s;s'=s+s
-   gor _ _ Tip = Tip
-   gor n s (Bin _ _ _ bl br) = bin n (t1^.elem n)  (gor n' s' bl) (gor n'' s' br) where n'=n+s;n''=n'+s;s'=s+s
+ t0 <> t1 = mappendx t1 0 1 t0 t1
+
+mappendx :: Tree -> Natural -> Natural -> Tree -> Tree -> Tree
+mappendx _ _ _ Tip Tip = Tip
+mappendx t1 n s (Bin _ _ ai al ar) Tip               = bin n (t1^.elem ai) (mappendxl t1 n' s' al)    (mappendxl t1 n'' s' ar)   where n'=n+s;n''=n'+s;s'=s+s
+mappendx t1 n s Tip                (Bin _ _ _ bl br) = bin n (t1^.elem n)  (mappendxr t1 n' s' bl)    (mappendxr t1 n'' s' br)   where n'=n+s;n''=n'+s;s'=s+s
+mappendx t1 n s (Bin _ _ ai al ar) (Bin _ _ _ bl br) = bin n (t1^.elem ai) (mappendx  t1 n' s' al bl) (mappendx t1 n'' s' ar br) where n'=n+s;n''=n'+s;s'=s+s
+
+mappendxl :: Tree -> Natural -> Natural -> Tree -> Tree
+mappendxl _ _ _ Tip = Tip
+mappendxl t1 n s (Bin _ _ ai al ar) = bin n (t1^.elem ai) (mappendxl t1 n' s' al) (mappendxl t1 n'' s' ar) where n'=n+s;n''=n'+s;s'=s+s
+
+mappendxr :: Tree -> Natural -> Natural -> Tree -> Tree
+mappendxr _ _ _ Tip = Tip
+mappendxr t1 n s (Bin _ _ _ bl br) = bin n (t1^.elem n)  (mappendxr t1 n' s' bl) (mappendxr t1 n'' s' br) where n'=n+s;n''=n'+s;s'=s+s
 
 instance Monoid Tree where
   mempty = Tip
@@ -113,8 +138,25 @@ instance AsEmpty Permutation where
 inv :: Permutation -> Permutation
 inv (Permutation s t) = Permutation t s
 
+square :: Permutation -> Permutation
+square (Permutation s t) = Permutation (squareTree s) (squareTree t)
+
 instance Semigroup Permutation where
   Permutation a b <> Permutation c d = Permutation (a <> c) (d <> b)
+  stimes n x0 = case compare n 0 of
+    LT -> f (inv x0) (negate n)
+    EQ -> mempty
+    GT -> f x0 n
+    where
+      f x y
+        | even y = f (square x) (quot y 2)
+        | y == 1 = x
+        | otherwise = g (square x) (quot y 2) x
+      g x y z
+        | even y = g (square x) (quot y 2) z
+        | y == 1 = x <> z
+        | otherwise = g (square x) (quot y 2) (x <> z)
+
 
 instance Monoid Permutation where
   mempty = Permutation Tip Tip

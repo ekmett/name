@@ -24,6 +24,7 @@ module Nominal.Internal.Set
 ) where
 
 import Control.Lens
+import Data.Semigroup hiding (diff)
 import Nominal.Internal.Atom
 
 -- the int is the depth of the shallowest free variable
@@ -47,6 +48,7 @@ union (SBin i li ri) (SBin j lj rj) = sbin (i /= 0 && j /= 0) (union li lj) (uni
 
 instance Semigroup Set where
   (<>) = union
+  stimes = stimesIdempotentMonoid
 
 instance Monoid Set where
   mempty = STip
