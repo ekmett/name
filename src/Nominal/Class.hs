@@ -104,8 +104,7 @@ instance Perm Atom where
   perm (Permutation t _) (A i) = A (t^.elem i)
 
 instance Perm Permutation where
-  -- using this action so we can be nominal
-  perm p t = inv p <> t <> p
+  perm p t = p <> t <> inv p
 
 -- efficient permutations by simultaneous induction on the set and the permutation
 -- should be good for mostly small permutations or small sets
@@ -136,6 +135,9 @@ instance (Perm a, Perm b) => Perm (Either a b)
 instance Perm a => Perm [a]
 instance Perm a => Perm (Maybe a)
 instance Perm (Proxy a)
+
+instance (Perm a, Perm b) => Perm (a -> b) where
+  perm p f = perm p . f . perm (inv p)
 
 class Perm1 f where
   perm1 :: (Permutation -> s -> s) -> Permutation -> f s -> f s
@@ -180,8 +182,8 @@ instance Nominal Set where
 instance (Nominal a, Nominal b) => Nominal (a, b)
 instance (Nominal a, Nominal b) => Nominal (Either a b)
 
-(#) :: Nominal a => Atom -> a -> Bool
-a # x = member a (supp x) -- could be more efficient
+(#) :: (Nominal a, Nominal b) => a -> b -> Bool
+a # b = supp a `intersects` supp b
 
 support :: Nominal a => Supported a
 support = Supported supp
@@ -197,6 +199,9 @@ support = Supported supp
 --
 class (Nominal a, Semigroup a) => NominalSemigroup a where
 instance NominalSemigroup Set
+instance NominalSemigroup Permutation
+
+-- perm p q <> perm p r = p <> q <> inv p <> p <> r <> inv p = p <> q <> r <> inv p = perm p (q <> r)
 instance (NominalSemigroup a, NominalSemigroup b) => NominalSemigroup (a, b)
   
 -- | perm is a unital group action
@@ -206,5 +211,6 @@ instance (NominalSemigroup a, NominalSemigroup b) => NominalSemigroup (a, b)
 -- supp mempty = mempty -- mempty has empty support
 -- @
 class (NominalSemigroup a, Monoid a) => NominalMonoid a
+instance NominalMonoid Permutation
 instance NominalMonoid Set
 instance (NominalMonoid a, NominalMonoid b) => NominalMonoid (a, b)

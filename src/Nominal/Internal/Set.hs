@@ -19,6 +19,7 @@ module Nominal.Internal.Set
 ( Set(..)
 , member, insert, delete
 , diff, union, intersect, singleton, xor
+, intersects
 , depth
 ) where
 
@@ -60,6 +61,12 @@ intersect :: Set -> Set -> Set
 intersect STip _ = STip
 intersect _ STip = STip
 intersect (SBin i li ri) (SBin j lj rj) = sbin (i /= 0 && j /= 0) (intersect li lj) (intersect ri rj)
+
+-- check overlap, rather than construct a whole set
+intersects :: Set -> Set -> Bool
+intersects STip _ = False
+intersects _ STip = False
+intersects (SBin i li ri) (SBin j lj rj) = min i j > 0 || intersects li lj || intersects ri rj
 
 diff :: Set -> Set -> Set
 diff a STip = a

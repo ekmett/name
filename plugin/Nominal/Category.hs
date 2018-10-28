@@ -20,7 +20,6 @@ module Nominal.Category where
 import Data.Constraint hiding ((***))
 import ConCat.Category
 import Nominal.Class
-import Nominal.Permutation
 import Nominal.Set
 import Nominal.Tie
 import Prelude hiding (id,(.))
@@ -31,7 +30,7 @@ runNom :: Nom a b -> a -> b
 runNom (Nom _ f) = f
 
 instance (Perm a, Perm b) => Perm (Nom a b) where
-  perm p (Nom s f) = Nom (perm p s) (perm p . f . perm (inv p))
+  perm p (Nom s f) = Nom (perm p s) (perm p f)
 
 instance (Perm a, Perm b) => Nominal (Nom a b) where
   supp (Nom s _) = s
@@ -43,16 +42,16 @@ instance Category Nom where
 
 -- products
 
-#ifndef ExpAsCat 
-instance OpCon (->) (Sat Nominal) where
+instance OpCon (->) (Sat Perm) where
   inOp = Entail (Sub Dict)
-  -- this is a damn lie
 
-instance (Perm a, Perm b) => Perm (a -> b) where
-  perm p f = perm p . f . perm (inv p)
+#ifndef ExpAsCat 
+-- evil orphan lies needed in order to try out concat
+instance OpCon (->) (Sat Nominal) where
+  inOp = Entail (Sub Dict) -- lies
 
 instance (Perm a, Perm b) => Nominal (a -> b) where 
-  supp = mempty -- another damn lie
+  supp = mempty -- lies
 #endif
 
 instance OpCon (,) (Sat Nominal) where
