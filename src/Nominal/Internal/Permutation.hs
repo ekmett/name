@@ -160,3 +160,10 @@ instance Semigroup Permutation where
 
 instance Monoid Permutation where
   mempty = Permutation Tip Tip
+
+invx :: Tree -> Tree -> Tree
+invx _ Tip = Tip
+invx t0 (Bin m d j l r) = Bin m d (if d == 0 then j else elem t0 j) (invx t0 l) (invx t0 r)
+
+promote :: Tree -> Permutation
+promote t = Perutation t (invx t t)
