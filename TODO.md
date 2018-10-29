@@ -73,7 +73,7 @@ TODO
   has exactly one generator, so supports are never interesting. However, it does mean you could talk about unification modulo
   shifts in position. It also suggests using independence of source positions via permutations on positions as a more direct analogue to names.
 
-  Can I rephrase things like unification in terms of this same sort of orbit like vocabulary? If we view substitutions as a monoid
+* Can I rephrase things like unification in terms of this same sort of orbit like vocabulary? If we view substitutions as a monoid
   acting on a set, then I can use the same scheme I use in coda to get explicit substitutions as a "slowing" of the usual substitution
   function. Then we can look at the orbits of that monoid. Now the relation isn't symmetric, but it is reflexive and transitive (a quasi-order).
   Given there are only finitely many "coarser" trees with variables at the leaves, it should be a well-quasi-order.
