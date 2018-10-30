@@ -163,7 +163,7 @@ instance Monoid Permutation where
 
 invx :: Tree -> Tree -> Tree
 invx _ Tip = Tip
-invx t0 (Bin m d j l r) = Bin m d (if d == 0 then j else elem t0 j) (invx t0 l) (invx t0 r)
+invx t0 (Bin m d j l r) = Bin m d (if d == 0 then j else eval t0 j) (invx t0 l) (invx t0 r)
 
 promote :: Tree -> Permutation
-promote t = Perutation t (invx t t)
+promote t = Permutation t (invx t t)

@@ -21,9 +21,12 @@ module Nominal.Permutation
 , inv -- invert a permutation
 , greater -- find a fresh variable > than all existing ones 
 , sup -- the greatest of the support, used when presenting standard cycles
+, parity
+, sign
 ) where
 
 import Control.Lens
+import Data.Bits
 import Data.List (groupBy)
 import Data.Semigroup
 import Nominal.Internal.Atom
@@ -73,3 +76,11 @@ cyclic = concat . cycles
 -- @
 reassemble :: [Atom] -> [[Atom]] 
 reassemble = groupBy (\(A x) (A y) -> x > y)
+
+-- nominal
+parity :: Permutation -> Bool
+parity = foldr (xor . foldr (const not) True) True . rcycles
+
+-- | Determinant of the permutation matrix, nominal
+sign :: Permutation -> Int
+sign g = (-1) ^ fromEnum (parity g)
