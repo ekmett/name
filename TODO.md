@@ -46,7 +46,7 @@ TODO
   e.g. the `Set` type in `Nominal.Set`. Those are stable under the larger class `N_G(A)`. You can permute elements in their support,
   you can permute elements outside of their support, but don't cross the boundary in any cycle.
 
-  Properly tallking about their support is effectively talking about partitions that we'd have to respect on atoms. Properly computing
+  Properly talking about their support is effectively talking about partitions that we'd have to respect on atoms. Properly computing
   minimal support here should be computing `N_G(S)` for the set S of atoms they cover, not `C_G(S)`.
 
   How to represent such a partitioning in such a way that it can be glued together with other supports?

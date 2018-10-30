@@ -19,34 +19,27 @@ module Nominal.Permutation
 , swap -- generator
 , rcycles, cycles, cyclic, reassemble -- traditional presentation
 , inv -- invert a permutation
-, greater -- find a fresh variable > than all existing ones 
-, sup -- the greatest of the support, used when presenting standard cycles
 , parity
 , sign
+, conjugacyClass
 ) where
 
 import Control.Lens
+import Control.Monad
 import Data.Bits
-import Data.List (groupBy)
+import Data.List (groupBy, sort)
 import Data.Semigroup
 import Nominal.Internal.Atom
 import Nominal.Internal.Permutation
 import Numeric.Natural
 import Prelude hiding (elem)
 
+-- nominal
 swap :: Atom -> Atom -> Permutation
-swap (A i) (A j) = Permutation t t where t = Tip & elem j .~ i & elem i .~ j
-
--- | largest support member, used by 'rcycles' for extracting standard form
-sup :: Permutation -> Maybe Atom
-sup (Permutation t _) = A . getMax <$> supTree t
-
--- | All n >= greater xs do not participate. This is the start of the smallest "ray" of step size 1
-greater :: Permutation -> Atom
-greater (Permutation t _) = A $ maybe 0 (succ . getMax) (supTree t)
+swap (A i) (A j) = join Permutation $ Tip & elem j .~ i & elem i .~ j
 
 -- | This is not quite natural order, as its easiest for me to find the largest element and work backwards.
--- for natural order, reverse the list of cycles
+-- for natural order, reverse the list of cycles. Not a nominal arrow
 rcycles :: Permutation -> [[Atom]]
 rcycles (Permutation t0 _) = go t0 where
   go t = case supTree t of
@@ -60,24 +53,39 @@ rcycles (Permutation t0 _) = go t0 where
     (n, t') | n == m    -> (t', [A e])
             | otherwise -> (A e :) <$> peel m n t'
 
--- | standard cyclic representation of a permutation, broken into parts
+-- | standard cyclic representation of a permutation, broken into parts. Not nominal
 cycles :: Permutation -> [[Atom]]
 cycles = reverse . rcycles
 
--- | standard cyclic representation of a permutation, smashed flat
+-- | standard cyclic representation of a permutation, smashed flat. Not nominal
 cyclic :: Permutation -> [Atom]
 cyclic = concat . cycles
+
+-- | If the conjugacy class of two permutations is the same then there is a permutation that
+-- can be used to conjugate one to get the other.
+--
+-- @
+-- 'conjugacyClass' x ≡ 'conjugacyClass' y => ∃z, y = z <> x <> inv z
+-- 'perm' p 'conjugacyClass' q = 'conjugacyClass' ('perm' p q) = 'conjugacyClass' q
+-- @
+conjugacyClass :: Permutation -> [Int]
+conjugacyClass = sort . map length . rcycles
 
 -- | reassemble takes a standard cyclic representation smashed flat and reassembles the cycles
 --
 -- @
 -- 'reassemble' . 'cyclic' = 'cycles'
 -- 'concat' . 'reassemble' = 'id'
+-- 'perm' p . 'reassemble' = 'reassemble' . 'perm' p
 -- @
-reassemble :: [Atom] -> [[Atom]] 
+--
+reassemble :: [Atom] -> [[Atom]]
 reassemble = groupBy (\(A x) (A y) -> x > y)
 
--- nominal
+-- |
+-- @
+-- 'perm' p 'parity' q = perm p ('parity' p ('perm' (inv p) q)) = 'parity' q
+-- @
 parity :: Permutation -> Bool
 parity = foldr (xor . foldr (const not) True) True . rcycles
 
