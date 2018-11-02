@@ -18,7 +18,7 @@
 module Nominal.Set
 ( Set
 -- * operations
-, SetLike(..), (+>), (\/), bottom
+, GBA(..), (+>), (\/), bottom
 -- * fresh variables
 , Stream(..), fresh, fresh1
 ) where
@@ -61,8 +61,12 @@ fresh1 = freshTree 0 1 where
 
 -- not known at the right point
 
--- (<>) = union, mempty = bottom
-class (Index a ~ Atom, Contains a, NominalMonoid a) => SetLike a where
+-- | A Generalized Boolean Algebra (Stone 1936) over atoms
+-- @
+-- (<>) = union
+-- mempty = bottom
+-- @
+class (Index a ~ Atom, Contains a, NominalMonoid a) => GBA a where
   insert :: Atom -> a -> a
   insert a = contains a .~ True
   {-# inline insert #-}
@@ -94,16 +98,16 @@ infixr 7 /\
 infixr 6 +>
 infixr 5 \/
 
-(+>) :: SetLike a => Atom -> a -> a
+(+>) :: GBA a => Atom -> a -> a
 (+>) = insert
 
-(\/) :: SetLike a => a -> a -> a
+(\/) :: GBA a => a -> a -> a
 (\/) = (<>)
 
-bottom :: SetLike a => a
+bottom :: GBA a => a
 bottom = mempty 
 
-instance SetLike Set where
+instance GBA Set where
   insert = Set.insert
   delete = Set.delete
   member = Set.member

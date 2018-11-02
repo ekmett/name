@@ -54,7 +54,7 @@ library
     Nominal.Map
     Nominal.Permutation
     Nominal.Set
-    Nominal.Support
+    Nominal.Supported
     Nominal.Suspension
     Nominal.Tie
 

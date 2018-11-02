@@ -8,7 +8,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Support where
+module Nominal.Supported where
 
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
@@ -30,3 +30,4 @@ instance Decidable Supported where
   choose f (Supported g) (Supported h) = Supported $ \a -> case f a of
     Left b -> g b
     Right c -> h c
+

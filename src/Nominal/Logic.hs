@@ -37,7 +37,7 @@ instance Perm Prop
 instance Nominal Prop
 
 -- nominal
-instance SetLike Prop where
+instance GBA Prop where
   member a (Finite s)   = member a s
   member a (Cofinite s) = not (member a s)
   {-# inline member #-}

@@ -36,7 +36,7 @@ import GHC.Generics
 import Nominal.Internal.Atom
 import Nominal.Internal.Permutation
 import Nominal.Internal.Set
-import Nominal.Support
+import Nominal.Supported
 import Prelude hiding (elem)
 
 class GPerm f where

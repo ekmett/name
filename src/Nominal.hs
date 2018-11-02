@@ -15,7 +15,7 @@ module Nominal
   -- , module Nominal.Map -- designed for qualified import
   , module Nominal.Permutation
   , module Nominal.Set
-  , module Nominal.Support
+  , module Nominal.Supported
   , module Nominal.Tie
   , Map
   ) where
@@ -26,5 +26,5 @@ import Nominal.Logic
 import Nominal.Map
 import Nominal.Permutation
 import Nominal.Set
-import Nominal.Support
+import Nominal.Supported
 import Nominal.Tie
