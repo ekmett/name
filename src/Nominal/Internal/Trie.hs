@@ -189,3 +189,9 @@ imerge
   -> Trie a -> Trie b -> Trie c
 imerge f g h (Trie m) (Trie n)
   = Trie (Map.mergeWithKey f (coerce g) (coerce h) m n)
+
+isSubtrieOfBy :: (a -> b -> Bool) -> Trie a -> Trie b -> Bool
+isSubtrieOfBy f (Trie a) (Trie b) = Map.isSubmapOfBy f a b
+
+isSubtrieOf :: Eq a => Trie a -> Trie a -> Bool
+isSubtrieOf (Trie a) (Trie b) = Map.isSubmapOf a b

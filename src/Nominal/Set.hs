@@ -26,14 +26,13 @@ import Data.Maybe (isJust)
 import Nominal.Lattice
 -- import Nominal.Class
 import qualified Nominal.Internal.Trie as Trie
-import Nominal.Internal.Trie (Trie, Atom(..), sup)
+import Nominal.Internal.Trie (Trie, Atom(..))
 
 newtype Set = Set { getSet :: Trie () }
   deriving (Eq, Show)
 
--- lame
-fresh :: Set -> Atom
-fresh (Set s) = maybe (A 0) (1+) $ sup s
+instance PartialOrder Set where
+  Set a ⊆ Set b = Trie.isSubtrieOfBy (\_ _ -> True) a b
 
 instance Semigroup Set where
   Set m <> Set n = Set (Trie.union m n)

@@ -27,7 +27,7 @@ instance Monad Suspended where
   Suspended ma a >>= k = case k a of
     Suspended mb b -> Suspended (ma <> mb) b
 
-instance Perm (Suspended a) where
+instance Permutable (Suspended a) where
   perm p (Suspended q a) = Suspended (p <> q) a
 
 instance Nominal a => Nominal (Suspended a) where
@@ -40,7 +40,7 @@ instance NominalMonoid a => Monoid (Suspended a) where
   mempty = Suspended mempty mempty
 
 -- nominal
-nextract :: Perm a => Suspended a -> a
+nextract :: Permutable a => Suspended a -> a
 nextract (Suspended p a) = perm p a
 
 -- Suspended should be a nominal comonad

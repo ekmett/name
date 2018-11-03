@@ -16,6 +16,7 @@ import Nominal.Internal.Permutation
 import Nominal.Internal.Trie as Trie
 import Nominal.Set as Set
 
+
 data Support where
   Supp :: Ord a => Trie a -> Support
 
@@ -31,8 +32,9 @@ set (Set s) = Supp s
 finest :: Support -> Support
 finest (Supp xs) = Supp (imap const xs)
 
-coarsest :: Support -> Support
-coarsest (Supp xs) = Supp (() <$ xs)
+-- | @coarsest . set = id@
+coarsest :: Support -> Set
+coarsest (Supp xs) = Set (() <$ xs)
 
 permutation :: Permutation -> Support
 permutation (Permutation (Tree t) _) = Supp t
@@ -60,6 +62,13 @@ instance Join Support where
 instance BoundedMeet Support where
   top = Supp (Empty :: Trie Void)
 
+-- this is a sign that i may have support upside down!
+instance Semigroup Support where
+  (<>) = (∧)
+
+instance Monoid Support where
+  mempty = top
+
 data These a b = This a | That b | These a b
   deriving (Eq, Ord, Show)
 
@@ -73,20 +82,20 @@ canonical (Supp xs) = evalState (traverse go xs) (0 :: Int, mempty) where
       _2.at x ?= x'
       pure x'
 
--- {{x,y},{z},U-{x,y,z}} ⊆ {{x,y},U-{x,y}}
--- {{x},{y},U-{x,y}} ⊆ {{x,y},U-{x,y}}
--- But {{x},U-{x}} is not ⊆ {{x,y},U-{x,y}}
-(⊆) :: Support -> Support -> Bool
-Supp xs ⊆ Supp ys = cond1 && cond2 where
-  cond1 = null (diff ys xs) 
-  cond2 = snd $ execState (itraverse_ go xs) (Map.empty, True) 
-  -- go :: (Ord x, Ord y) => Atom -> x -> State (Map x (Maybe y), Bool) ()
-  go n x = use (_1.at x) >>= \case
-    Just my' | my' == my -> pure ()
-             | otherwise -> _2 .= False
-    Nothing -> _1.at x ?= my
-    where my = ys^.at n
-
+instance PartialOrder Support where
+  -- {{x,y},{z},U-{x,y,z}} ⊆ {{x,y},U-{x,y}}
+  -- {{x},{y},U-{x,y}} ⊆ {{x,y},U-{x,y}}
+  -- But {{x},U-{x}} is not ⊆ {{x,y},U-{x,y}}
+  Supp xs ⊆ Supp ys = cond1 && cond2 where
+    cond1 = null (diff ys xs) 
+    cond2 = snd $ execState (itraverse_ go xs) (Map.empty, True) 
+    -- go :: (Ord x, Ord y) => Atom -> x -> State (Map x (Maybe y), Bool) ()
+    go n x = use (_1.at x) >>= \case
+      Just my' | my' == my -> pure ()
+               | otherwise -> _2 .= False
+      Nothing -> _1.at x ?= my
+      where my = ys^.at n
+  
 instance Eq Support where
   xs == ys = canonical xs == canonical ys
     
@@ -98,3 +107,4 @@ instance Distributive Support
 
 (↑) :: Support -> Set -> Support
 x ↑ y = x ∨ set y
+

@@ -25,7 +25,7 @@ import Control.Category
 import GHC.Exts
 import Data.Void
 import Nominal.Class
-import Nominal.Set
+import Nominal.Support
 import qualified Prelude
 import Prelude
   ( Either(..), Eq(..), Maybe(..), Bool(..), ($)
@@ -37,7 +37,7 @@ import Prelude
 type (*) = (,)
 type (+) = Either
 
-data Nom a b = Nom Set (a -> b)
+data Nom a b = Nom Support (a -> b)
 
 instance Category Nom where
   id = Nom mempty id
@@ -45,18 +45,19 @@ instance Category Nom where
   Nom s f . Nom t g = Nom (s<>t) (f.g)
   {-# inline (.) #-}
 
-instance (Perm a, Perm b) => Perm (Nom a b) where
+instance (Permutable a, Permutable b) => Permutable (Nom a b) where
   perm p (Nom s f) = Nom (perm p s) (perm p f)
 
-instance (Perm a, Perm b) => Nominal (Nom a b) where
+instance (Permutable a, Permutable b) => Nominal (Nom a b) where
   supp (Nom s _) = s
 
-suppNom :: Nom a b -> Set
+suppNom :: Nom a b -> Support
 suppNom (Nom s _) = s
 
 runNom :: Nom a b -> a -> b
 runNom (Nom _ f) = f
 
+-- unsafe
 nom_ :: (a -> b) -> Nom a b
 nom_ = Nom mempty
 
@@ -308,7 +309,7 @@ instance CCC Nom where
 
 -- convenient for writing general purpose code abstract whether it is an arrow or in Nom
 class (CCC k, Cocartesian k) => N k where
-  nom :: Set -> (a -> b) -> k a b -- construct a nominal arrow with manual support, unsafe
+  nom :: Support -> (a -> b) -> k a b -- construct a nominal arrow with manual support, unsafe
   -- requires type applications
   con :: proxy k -> (k ~ (->) => r) -> r -> r
 
@@ -352,7 +353,7 @@ type (⊙) = Tensor
 data Tensor v a = Tensor v a -- v should be 'invisible' within Nom, I give no Nom arrows for extracting it
   deriving (Eq, Functor)
 
-instance Perm a => Perm (Tensor v a) where
+instance Permutable a => Permutable (Tensor v a) where
   perm p (Tensor v a) = Tensor v (perm p a) -- v many copies of a?
   {-# inline perm #-}
 
@@ -388,7 +389,7 @@ instance (Finite v, Eq a) => Eq (Power v a) where
   Power f == Power g = fmap f every == fmap g every
   {-# inline (==) #-}
 
-instance Perm a => Perm (Power v a) where
+instance Permutable a => Permutable (Power v a) where
   perm p (Power f) = Power (perm p . f)
   {-# inline perm #-}
 

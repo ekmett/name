@@ -5,6 +5,7 @@
 {-# language FlexibleContexts #-}
 {-# language DefaultSignatures #-}
 {-# language PatternSynonyms #-}
+{-# language ViewPatterns #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -17,15 +18,15 @@
 ---------------------------------------------------------------------------------
 
 module Nominal.Class
-( Perm(..)
-, Perm1(..)
-, Nominal(..)
-, (#), support
+( Permutable(..)
+, Permutable1(..)
+, Nominal(..), equiv, fresh
+-- , (#), support
 , NominalSemigroup
 , NominalMonoid
 -- * Generics
-, GPerm
-, GPerm1
+, GPermutable
+, GPermutable1
 ) where
 
 import Control.Lens hiding (to, from, (#))
@@ -33,163 +34,155 @@ import Data.Functor.Contravariant.Generic
 import Data.Proxy
 import Data.Void
 import GHC.Generics
-import Nominal.Internal.Trie (Atom(..))
+import Nominal.Internal.Trie as Trie
 import Nominal.Internal.Permutation
-import Nominal.Internal.Set
+import Nominal.Set
+import Nominal.Support
 import Nominal.Supported
+import Nominal.Logic
 import Prelude hiding (elem)
 
-class GPerm f where
-  gperm :: Permutation -> f a -> f a
+--------------------------------------------------------------------------------
+-- * Permutable
+--------------------------------------------------------------------------------
 
-instance Perm c => GPerm (K1 i c) where
-  gperm p (K1 a) = K1 (perm p a)
-
-instance GPerm f => GPerm (M1 i c f) where
-  gperm p (M1 a) = M1 (gperm p a)
-
-instance GPerm V1 where
-  gperm _ !v = case v of {}
-
-instance GPerm U1 where
-  gperm _ U1 = U1
-  
-instance (GPerm f, GPerm g) => GPerm (f :*: g) where
-  gperm p (a :*: b) = gperm p a :*: gperm p b
-
-instance (GPerm f, GPerm g) => GPerm (f :+: g) where
-  gperm p (L1 a) = L1 (gperm p a)
-  gperm p (R1 a) = R1 (gperm p a)
-
-instance (Perm1 f, GPerm g) => GPerm (f :.: g) where
-  gperm p (Comp1 a) = Comp1 (perm1 gperm p a)
-
-class GPerm1 f where
-  gperm1 :: (Permutation -> a -> a) -> Permutation -> f a -> f a
-
-instance Perm c => GPerm1 (K1 i c) where
-  gperm1 _ p (K1 a) = K1 (perm p a)
-
-instance GPerm1 f => GPerm1 (M1 i c f) where
-  gperm1 f p (M1 a) = M1 (gperm1 f p a)
-
-instance GPerm1 V1 where
-  gperm1 _ _ !v = case v of {}
-
-instance GPerm1 U1 where
-  gperm1 _ _ U1 = U1
-  
-instance (GPerm1 f, GPerm1 g) => GPerm1 (f :*: g) where
-  gperm1 f p (a :*: b) = gperm1 f p a :*: gperm1 f p b
-
-instance (GPerm1 f, GPerm1 g) => GPerm1 (f :+: g) where
-  gperm1 f p (L1 a) = L1 (gperm1 f p a)
-  gperm1 f p (R1 a) = R1 (gperm1 f p a)
-
-instance (Perm1 f, GPerm1 g) => GPerm1 (f :.: g) where
-  gperm1 f p (Comp1 a) = Comp1 (perm1 (gperm1 f) p a)
-
-instance GPerm1 Par1 where
-  gperm1 f p (Par1 a) = Par1 (f p a)
-
-instance Perm1 f => GPerm1 (Rec1 f) where
-  gperm1 f p (Rec1 a) = Rec1 (perm1 f p a)
-
-class Perm s where
+class Permutable s where
+  -- |
+  -- @
   -- perm mempty = id
   -- perm (p <> q) = perm p . perm q
+  -- @
   perm :: Permutation -> s -> s
-  default perm :: (Generic s, GPerm (Rep s)) => Permutation -> s -> s
+  default perm :: (Generic s, GPermutable (Rep s)) => Permutation -> s -> s
   perm p = to . gperm p . from
 
-instance Perm Atom where 
-  perm (Permutation t _) (A i) = A (t^.elem i)
+instance Permutable Atom where 
+  perm (Permutation t _) i = permTree t i
 
-instance Perm Permutation where
+instance Permutable Permutation where
   perm p t = p <> t <> inv p
 
--- efficient permutations by simultaneous induction on the set and the permutation
--- should be good for mostly small permutations or small sets
-instance Perm Set where
-  perm (Permutation p0 _) t0 = go 0 1 p0 t0 t0 where
-    go _ _ Tip _ t = t -- outside P, no changes to S
-    -- | we're in P \ S, any elements here being sent into S are deletes, use del from here on out
-    --   as the entire remaining sub-tree is contained in P \ S 
-    go n s (Bin _ _ j l r) STip           t -- no set left, all things down here are deletes
-      | n == j    = del n'' s' r $ del n' s' l t
-      | otherwise = del n'' s' r $ del n' s' l $ delete (A j) t
-      where n'=n+s;n''=n'+s;s'=s+s
-    go n s (Bin _ _ j l r) (SBin d sl sr) t
-      | n == j    = go n'' s' r sr $ go n' s' l sl t -- outside P
-      | d == 0    = go n'' s' r sr $ go n' s' l sl $ insert (A j) t -- d == 0, an element of the set, insert image
-      | otherwise = go n'' s' r sr $ go n' s' l sl $ delete (A j) t -- d /= 0, not an element of the set, delete image
-      where n'=n+s;n''=n'+s;s'=s+s
-    del _ _ Tip t = t
-    del n s (Bin _ _ j l r) t
-      | n == j    = del n'' s' r $ del n' s' l t
-      | otherwise = del n'' s' r $ del n' s' l $ delete (A j) t
-      where n'=n+s;n''=n'+s;s'=s+s
+instance Permutable Set where
+  perm (Permutation (Tree p) _) z = ifoldr tweak z p where
+    tweak i j s = s & contains j .~ z^.contains i
 
-instance Perm Void
-instance Perm ()
-instance (Perm a, Perm b) => Perm (a, b)
-instance (Perm a, Perm b) => Perm (Either a b)
-instance Perm a => Perm [a]
-instance Perm a => Perm (Maybe a)
-instance Perm (Proxy a)
+instance Permutable Support where
+  perm (Permutation (Tree p) _) (Supp z) = Supp $ ifoldr tweak z p where
+    tweak i j s = s & at j .~ z^.at i
 
-instance (Perm a, Perm b) => Perm (a -> b) where
+instance Permutable a => Permutable (Trie a) where
+  perm p0@(Permutation (Tree p) _) t = ifoldr tweak z p where
+    tweak i j s = s & at j .~ z^.at i
+    z = perm p0 <$> t
+
+instance Permutable Prop
+
+instance Permutable Void
+
+instance Permutable ()
+
+instance (Permutable a, Permutable b) => Permutable (a, b)
+
+instance (Permutable a, Permutable b) => Permutable (Either a b)
+
+instance Permutable a => Permutable [a]
+
+instance Permutable a => Permutable (Maybe a)
+
+instance Permutable (Proxy a)
+
+instance (Permutable a, Permutable b) => Permutable (a -> b) where
   perm p f = perm p . f . perm (inv p)
 
-class Perm1 f where
+--------------------------------------------------------------------------------
+-- * Permutable1
+--------------------------------------------------------------------------------
+
+class Permutable1 f where
   perm1 :: (Permutation -> s -> s) -> Permutation -> f s -> f s
-  default perm1 :: (Generic1 f, GPerm1 (Rep1 f)) => (Permutation -> s -> s) -> Permutation -> f s -> f s
+  default perm1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Permutation -> s -> s) -> Permutation -> f s -> f s
   perm1 f p = to1 . gperm1 f p . from1
 
-instance Perm1 Proxy
-instance Perm1 [] 
-instance Perm1 Maybe
-instance Perm a => Perm1 ((,)a)
-instance Perm a => Perm1 (Either a)
+instance Permutable1 Proxy
+instance Permutable1 [] 
+instance Permutable1 Maybe
+instance Permutable a => Permutable1 ((,)a)
+instance Permutable a => Permutable1 (Either a)
 
-class Perm s => Nominal s where
-  -- if (forall x. member x (supp s) => perm p x = x) then perm p s = s
-  supp :: s -> Set
-  default supp :: Deciding Nominal s => s -> Set
+instance Permutable1 Trie where
+  perm1 f p0@(Permutation (Tree p) _) t = ifoldr tweak z p where
+    tweak i j s = s & at j .~ z^.at i
+    z = f p0 <$> t
+
+--------------------------------------------------------------------------------
+-- * Nominal
+--------------------------------------------------------------------------------
+
+class Permutable s => Nominal s where
+  -- | The usual convention in nominal sets is to say something like:
+  -- 
+  -- @
+  -- if (forall x in supp s. perm p x = x) then perm p s = s
+  -- @
+  --
+  -- here,
+  --
+  -- @
+  -- if (forall x in supp s. equiv (supp s) (perm p x) x) then perm p s = s
+  -- @
+  --
+  -- This enables supports to describe allowed permutations.
+  --
+  -- Consider, a set of atoms, membership will return true given any atom in the set.
+  -- but if you permuted those atoms that are within the set amongst themselves
+  -- the answer wouldn't change. Similarly if you permuted elements that are solely
+  -- outside of the set, the answer wouldn't change. It is only when you permute in
+  -- such a way that exchanges elements from within the set with elements outside of
+  -- the set that the answer fails to match
+  supp :: s -> Support
+  default supp :: Deciding Nominal s => s -> Support
   supp = getSupported $ deciding (Proxy :: Proxy Nominal) (Supported supp)
 
-  -- should this provide how to distribute/collect Tie as well?
+-- equivalent modulo support
+equiv :: Nominal s => s -> Atom -> Atom -> Bool
+equiv (supp -> Supp s) i j = s^.at i == s^.at j
+
+-- lame
+fresh :: Nominal s => s -> Atom
+fresh (supp -> Supp s) = maybe (A 0) (1+) $ sup s
 
 instance Nominal Permutation where
-  supp (Permutation t0 _) = go t0 where
-    go Tip = STip
-    go (Bin _ i _ l r) = SBin i (go l) (go r)
+  supp (Permutation (Tree t) _) = Supp t
 
 instance Nominal a => Nominal [a]
 
 instance Nominal a => Nominal (Maybe a)
 
-instance Nominal (Proxy a) where
-  supp = mempty
+instance Nominal Support where
+  supp = id
+
+instance Nominal (Proxy a)
 
 instance Nominal Atom where
-  supp = singleton
+  supp a = Supp (Trie.singleton a ())
 
 instance Nominal Void
 
 instance Nominal ()
 
 instance Nominal Set where
-  supp = id
+  supp (Set s) = Supp s
 
 instance (Nominal a, Nominal b) => Nominal (a, b)
+
 instance (Nominal a, Nominal b) => Nominal (Either a b)
 
-(#) :: (Nominal a, Nominal b) => a -> b -> Bool
-a # b = supp a `intersects` supp b
+-- (#) :: (Nominal a, Nominal b) => a -> b -> Bool
+-- a # b = supp a `disjoint` supp b
 
-support :: Nominal a => Supported a
-support = Supported supp
+--------------------------------------------------------------------------------
+-- * Nominal Semigroups
+--------------------------------------------------------------------------------
 
 -- | (<>) is a nominal morphism, @a@ is a semigroup in @Nom_fs@
 --
@@ -197,15 +190,19 @@ support = Supported supp
 --
 -- @
 -- perm p (a <> b) = perm p a <> perm p b
--- supp (a <> b) `isSubsetOf` (supp a <> supp b)
+-- supp (a <> b) ⊆ (supp a <> supp b)
 -- @
 --
 class (Nominal a, Semigroup a) => NominalSemigroup a where
 instance NominalSemigroup Set
 instance NominalSemigroup Permutation
 
--- perm p q <> perm p r = p <> q <> inv p <> p <> r <> inv p = p <> q <> r <> inv p = perm p (q <> r)
 instance (NominalSemigroup a, NominalSemigroup b) => NominalSemigroup (a, b)
+instance NominalSemigroup Support
+
+--------------------------------------------------------------------------------
+-- * Nominal Monoids
+--------------------------------------------------------------------------------
   
 -- | perm is a unital group action
 --
@@ -217,3 +214,65 @@ class (NominalSemigroup a, Monoid a) => NominalMonoid a
 instance NominalMonoid Permutation
 instance NominalMonoid Set
 instance (NominalMonoid a, NominalMonoid b) => NominalMonoid (a, b)
+
+-- TODO: Nominal lattices, etc?
+
+--------------------------------------------------------------------------------
+-- * GHC Generics Support
+--------------------------------------------------------------------------------
+
+class GPermutable f where
+  gperm :: Permutation -> f a -> f a
+
+instance Permutable c => GPermutable (K1 i c) where
+  gperm p (K1 a) = K1 (perm p a)
+
+instance GPermutable f => GPermutable (M1 i c f) where
+  gperm p (M1 a) = M1 (gperm p a)
+
+instance GPermutable V1 where
+  gperm _ !v = case v of {}
+
+instance GPermutable U1 where
+  gperm _ U1 = U1
+  
+instance (GPermutable f, GPermutable g) => GPermutable (f :*: g) where
+  gperm p (a :*: b) = gperm p a :*: gperm p b
+
+instance (GPermutable f, GPermutable g) => GPermutable (f :+: g) where
+  gperm p (L1 a) = L1 (gperm p a)
+  gperm p (R1 a) = R1 (gperm p a)
+
+instance (Permutable1 f, GPermutable g) => GPermutable (f :.: g) where
+  gperm p (Comp1 a) = Comp1 (perm1 gperm p a)
+
+class GPermutable1 f where
+  gperm1 :: (Permutation -> a -> a) -> Permutation -> f a -> f a
+
+instance Permutable c => GPermutable1 (K1 i c) where
+  gperm1 _ p (K1 a) = K1 (perm p a)
+
+instance GPermutable1 f => GPermutable1 (M1 i c f) where
+  gperm1 f p (M1 a) = M1 (gperm1 f p a)
+
+instance GPermutable1 V1 where
+  gperm1 _ _ !v = case v of {}
+
+instance GPermutable1 U1 where
+  gperm1 _ _ U1 = U1
+  
+instance (GPermutable1 f, GPermutable1 g) => GPermutable1 (f :*: g) where
+  gperm1 f p (a :*: b) = gperm1 f p a :*: gperm1 f p b
+
+instance (GPermutable1 f, GPermutable1 g) => GPermutable1 (f :+: g) where
+  gperm1 f p (L1 a) = L1 (gperm1 f p a)
+  gperm1 f p (R1 a) = R1 (gperm1 f p a)
+
+instance (Permutable1 f, GPermutable1 g) => GPermutable1 (f :.: g) where
+  gperm1 f p (Comp1 a) = Comp1 (perm1 (gperm1 f) p a)
+
+instance GPermutable1 Par1 where
+  gperm1 f p (Par1 a) = Par1 (f p a)
+
+instance Permutable1 f => GPermutable1 (Rec1 f) where
+  gperm1 f p (Rec1 a) = Rec1 (perm1 f p a)
