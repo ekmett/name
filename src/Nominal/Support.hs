@@ -16,7 +16,6 @@ import Nominal.Internal.Permutation
 import Nominal.Internal.Trie as Trie
 import Nominal.Set as Set
 
-
 data Support where
   Supp :: Ord a => Trie a -> Support
 

@@ -165,3 +165,5 @@ liftB2 :: (Bool -> Bool -> Bool) -> Prop -> Prop -> Prop
 liftB2 = table . fun
 
 -- instance Bits Prop
+
+-- TODO: instance PartialOrder Prop where
