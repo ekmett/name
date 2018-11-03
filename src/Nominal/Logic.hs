@@ -23,7 +23,8 @@ import Control.Lens
 import Data.Semigroup
 import GHC.Generics
 import Nominal.Atom
-import Nominal.Class
+-- import Nominal.Class
+import Nominal.Lattice
 import Nominal.Internal.Logic
 import Nominal.Set
 
@@ -33,11 +34,57 @@ import Nominal.Set
 -- this satisfies excluded-middle, etc.
 data Prop = Finite Set | Cofinite Set deriving (Generic, Eq)
 
-instance Perm Prop
-instance Nominal Prop
+-- instance Perm Prop
+-- instance Nominal Prop
 
--- nominal
+instance Semigroup Prop  where
+  stimes n m = case compare n 0 of
+    LT -> neg m
+    EQ -> mempty
+    GT -> m
+  {-# inline stimes #-}
+
+  Finite p   <> Finite q   = Finite   (p ∨ q)
+  Finite p   <> Cofinite q = Finite   (q \\ p)
+  Cofinite p <> Finite q   = Finite   (p \\ q)
+  Cofinite p <> Cofinite q = Cofinite (p ∧ q)
+  {-# inline (<>) #-}
+
+instance Monoid Prop where
+  mempty = Finite mempty
+
+instance Join Prop
+instance BoundedJoin Prop
+
+instance Meet Prop where
+  Finite p   ∧ Finite q   = Finite   (p ∧ q) -- pq
+  Finite p   ∧ Cofinite q = Finite   (p \\ q) -- p(S-q)=pS-pq=p-q
+  Cofinite p ∧ Finite q   = Finite   (q \\ p) -- (S-p)q=Sq-pq=q-pq=q-p
+  Cofinite p ∧ Cofinite q = Cofinite (p ∨ q)
+  -- (S-p)(S-q)=S(S-q)-p(S-q)=SS-Sq-pS-pq=S-q-p-pq=S-q-p=S-(q+p)
+  {-# inline (∧) #-}
+
+instance Distributive Prop
+
 instance GBA Prop where
+  -- nominal
+  -- @p \\ q = p ∧ neg q@
+  Finite p   \\ Finite q   = Finite   (p \\ q)
+  Finite p   \\ Cofinite q = Finite   (p ∧ q)
+  Cofinite p \\ Finite q   = Cofinite (p ∨ q)
+  Cofinite p \\ Cofinite q = Finite   (q \\ p)
+  {-# inline (\\) #-}
+
+  -- nominal
+  xor (Finite p) (Cofinite q)   = Cofinite (p ∧ q)
+  xor (Cofinite p) (Finite q)   = Cofinite (p ∧ q)
+  xor (Finite p) (Finite q)     = Finite  (xor p q)
+  xor (Cofinite p) (Cofinite q) = Finite  (xor p q)
+  {-# inline xor #-}
+
+{-
+-- nominal
+instance SetLike Prop where
   member a (Finite s)   = member a s
   member a (Cofinite s) = not (member a s)
   {-# inline member #-}
@@ -53,79 +100,31 @@ instance GBA Prop where
   delete a (Finite s)   = Finite (delete a s)
   delete a (Cofinite s) = Cofinite (insert a s)
   {-# inline delete #-}
+-}
 
-  Finite p   /\ Finite q   = Finite   (p /\ q) -- pq
-  Finite p   /\ Cofinite q = Finite   (p \\ q) -- p(S-q)=pS-pq=p-q
-  Cofinite p /\ Finite q   = Finite   (q \\ p) -- (S-p)q=Sq-pq=q-pq=q-p
-  Cofinite p /\ Cofinite q = Cofinite (p \/ q)
-  -- (S-p)(S-q)=S(S-q)-p(S-q)=SS-Sq-pS-pq=S-q-p-pq=S-q-p=S-(q+p)
-  {-# inline (/\) #-}
+instance BoundedMeet Prop where
+  top = Cofinite bottom
+  {-# inline conlike top #-}
 
-  -- nominal
-  -- @p \\ q = p /\ neg q@
-  Finite p   \\ Finite q   = Finite   (p \\ q)
-  Finite p   \\ Cofinite q = Finite   (p /\ q)
-  Cofinite p \\ Finite q   = Cofinite (p \/ q)
-  Cofinite p \\ Cofinite q = Finite   (q \\ p)
-  {-# inline (\\) #-}
+instance Boolean Prop where
+  neg (Finite s) = Cofinite s
+  neg (Cofinite s) = Finite s
+  {-# inline neg #-}
 
-  -- nominal
-  xor (Finite p) (Cofinite q)   = Cofinite (p /\ q)
-  xor (Cofinite p) (Finite q)   = Cofinite (p /\ q)
-  xor (Finite p) (Finite q)     = Finite  (xor p q)
-  xor (Cofinite p) (Cofinite q) = Finite  (xor p q)
-  {-# inline xor #-}
+  implies (Finite p) (Finite q)     = Finite   (p \\ q)
+  implies (Finite p) (Cofinite q)   = Cofinite (p ∧ q)
+  implies (Cofinite p) (Finite q)   = Finite   (p ∨ q)
+  implies (Cofinite p) (Cofinite q) = Finite   (q \\ p)
+  {-# inline implies #-}
 
-instance Semigroup Prop where
-  stimes n m = case compare n 0 of
-    LT -> neg m
-    EQ -> mempty
-    GT -> m
-  {-# inline stimes #-}
+  iff (Finite p)   (Finite q)   = Cofinite (xor p q)
+  iff (Finite p)   (Cofinite q) = Finite   (p ∧ q)
+  iff (Cofinite p) (Cofinite q) = Cofinite (xor p q)
+  iff (Cofinite p) (Finite q)   = Finite   (p ∧ q)
+  {-# inline iff #-}
 
-  Finite p   <> Finite q   = Finite   (p \/ q)
-  Finite p   <> Cofinite q = Finite   (q \\ p)
-  Cofinite p <> Finite q   = Finite   (p \\ q)
-  Cofinite p <> Cofinite q = Cofinite (p /\ q)
-  {-# inline (<>) #-}
-
-instance Monoid Prop where
-  mempty = Finite mempty
-
-instance NominalSemigroup Prop
-
-instance NominalMonoid Prop
-
--- | complement
-neg :: Prop -> Prop
-neg (Finite s) = Cofinite s
-neg (Cofinite s) = Finite s
-{-# inline neg #-}
-
--- |
--- @implies p q = ~p \/ q@
-implies :: Prop -> Prop -> Prop
-implies (Finite p) (Finite q)     = Finite   (p \\ q)
-implies (Finite p) (Cofinite q)   = Cofinite (p /\ q)
-implies (Cofinite p) (Finite q)   = Finite   (p \/ q)
-implies (Cofinite p) (Cofinite q) = Finite   (q \\ p)
-{-# inline implies #-}
-
--- |
--- @
--- iff p q = implies p q `and` implies q p
--- @
--- iff p q = not (xor p q)
--- iff p q = ite f g (neg g)
-iff :: Prop -> Prop -> Prop
-iff (Finite p)   (Finite q)   = Cofinite (xor p q)
-iff (Finite p)   (Cofinite q) = Finite   (p /\ q)
-iff (Cofinite p) (Cofinite q) = Cofinite (xor p q)
-iff (Cofinite p) (Finite q)   = Finite   (p /\ q)
-{-# inline iff #-}
-
-top :: Prop
-top = Cofinite mempty
+-- instance NominalSemigroup Prop
+-- instance NominalMonoid Prop
 
 instance AsEmpty Prop where
   _Empty = prism (const (Finite mempty)) $ \case
@@ -147,20 +146,20 @@ liftB f !s
 
 table :: Fun -> Prop -> Prop -> Prop
 table TNever  _ _ = bottom
-table TAnd    f g = f /\ g
+table TAnd    f g = f ∧ g
 table TGt     f g = f \\ g -- f > g
 table TF      f _ = f
 table TLt     f g = g \\ f -- f < g
 table TG      _ g = g
 table TXor    f g = xor f g
-table TOr     f g = f \/ g -- f || g
-table TNor    f g = neg f /\ neg g -- nor f g
-table TXnor   f g = iff f g -- f /\ g \/ neg f /\ neg g
+table TOr     f g = f ∨ g -- f || g
+table TNor    f g = neg f ∧ neg g -- nor f g
+table TXnor   f g = iff f g -- f ∧ g ∨ neg f ∧ neg g
 table TG'     _ g = neg g
-table TGe     f g = implies g f -- f /\ neg g  -- f >= g
+table TGe     f g = implies g f -- f ∧ neg g  -- f >= g
 table TF'     f _ = neg f
 table TLe     f g = implies f g -- ite f g One        -- f <= g
-table TNand   f g = neg (f /\ g) -- ite f (neg g) One  -- nand f g
+table TNand   f g = neg (f ∧ g) -- ite f (neg g) One  -- nand f g
 table TAlways _ _ = top
 
 -- | lift boolean functions through the table e.g. @liftB2 (&&)@, @liftB2 (<=)@

@@ -51,7 +51,7 @@ elem :: Atom -> Lens' Tree Atom
 elem i f (Tree s) = Tree <$> at i (non i f) s where
 
 instance Monoid Tree where
-  mempty = Tree Nil
+  mempty = Tree Empty
 
 data Permutation = Permutation Tree Tree
   deriving Show
@@ -64,8 +64,9 @@ instance Eq Permutation where
 
 instance AsEmpty Permutation where
   _Empty = prism (const mempty) $ \case
-    Permutation (Tree Nil) _ -> Right ()
+    Permutation (Tree Empty) _ -> Right ()
     t -> Left t
+
 
 inv :: Permutation -> Permutation
 inv (Permutation s t) = Permutation t s
@@ -94,7 +95,7 @@ instance Monoid Permutation where
   mempty = Permutation mempty mempty
 
 invTree :: Tree -> Tree
-invTree (Tree x) = Tree $ ifoldr (flip insert) Nil x where
+invTree (Tree x) = Tree $ ifoldr (flip insert) Empty x where
 
 promote :: Tree -> Permutation
 promote t = Permutation t (invTree t)

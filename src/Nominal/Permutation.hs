@@ -24,18 +24,18 @@ module Nominal.Permutation
 , conjugacyClass
 ) where
 
--- import Control.Lens
+import Control.Lens
 import Control.Monad
 import Data.Bits
 import Data.List (groupBy, sort)
-import Nominal.Internal.Trie (Atom(..), insert, delete, lookup, Trie(..))
+import Nominal.Internal.Trie
 import Nominal.Internal.Permutation
 import Prelude hiding (elem, lookup)
 
 -- nominal
 swap :: Atom -> Atom -> Permutation
 swap i j
-  | i /= j = join Permutation $ Tree $ insert i j $ insert j i Nil
+  | i /= j = join Permutation $ Tree $ insert i j $ insert j i Empty
   | otherwise = mempty
 
 -- | This is not quite natural order, as its easiest for me to find the largest element and work backwards.

@@ -5,5 +5,5 @@ packages:
   concat/known/concat-known.cabal
   concat/inline/concat-inline.cabal
 package nominal
-  flags: +concat
+--  flags: +concat
 documentation: False

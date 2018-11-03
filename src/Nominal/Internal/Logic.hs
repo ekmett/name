@@ -14,32 +14,56 @@
 
 module Nominal.Internal.Logic where
 
-import Data.Bits
+import Data.Bits (Bits, FiniteBits)
+import qualified Data.Bits as Bits
 import Data.Data
 import GHC.Generics
 import GHC.Arr
+import Nominal.Lattice
 
 -- | all two argument functions enumerated by truth tables
 data Fun = TNever | TAnd | TGt | TF | TLt | TG | TXor | TOr | TNor | TXnor | TG' | TGe | TF' | TLe | TNand | TAlways
   deriving (Eq,Ord,Show,Read,Ix,Enum,Bounded,Data,Generic)
 
+instance Join Fun where
+  f ∨ g = toEnum (fromEnum f Bits..|. fromEnum g)
+  
+instance BoundedJoin Fun where
+  bottom = TNever
+
+instance Meet Fun where
+  f ∧ g = toEnum (fromEnum f Bits..&. fromEnum g)
+
+instance BoundedMeet Fun where
+  top = TAlways
+
+instance Distributive Fun
+
+instance GBA Fun where
+  p \\ q = p ∧ neg q
+  xor f g = toEnum (fromEnum f `Bits.xor` fromEnum g)
+
+instance Boolean Fun where
+  implies p q = neg p ∨ q
+  neg f = toEnum (Bits.complement (fromEnum f) Bits..&. 15)
+
 instance Bits Fun where
-  (.&.) f g    = toEnum (fromEnum f .&. fromEnum g)
-  (.|.) f g    = toEnum (fromEnum f .|. fromEnum g)
-  xor f g      = toEnum (fromEnum f `xor` fromEnum g)
-  complement f = toEnum (complement (fromEnum f) .&. 15)
-  shift x i = toEnum (shift (fromEnum x) i .&. 15)
-  rotateL (fromEnum -> x) i = toEnum $ (shiftL x i .|. shiftR x (4 - i)) .&. 15
-  rotateR (fromEnum -> x) i = toEnum $ (shiftR x i .|. shiftL x (4 - i)) .&. 15
-  bit i = toEnum (bit i .&. 15)
-  testBit = testBit . fromEnum
-  setBit x i = toEnum (setBit (fromEnum x) i .&. 15)
-  clearBit x i = toEnum (clearBit (fromEnum x) i .&. 15)
+  (.&.) = (∧)
+  (.|.) = (∨)
+  xor = xor
+  complement = neg
+  shift x i = toEnum (Bits.shift (fromEnum x) i Bits..&. 15)
+  rotateL (fromEnum -> x) i = toEnum $ (Bits.shiftL x i Bits..|. Bits.shiftR x (4 - i)) Bits..&. 15
+  rotateR (fromEnum -> x) i = toEnum $ (Bits.shiftR x i Bits..|. Bits.shiftL x (4 - i)) Bits..&. 15
+  bit i = toEnum (Bits.bit i Bits..&. 15)
+  testBit = Bits.testBit . fromEnum
+  setBit x i = toEnum (Bits.setBit (fromEnum x) i Bits..&. 15)
+  clearBit x i = toEnum (Bits.clearBit (fromEnum x) i Bits..&. 15)
   bitSizeMaybe _ = Just 4
   bitSize _ = 4
   isSigned _ = False
   zeroBits = TNever
-  popCount = popCount . fromEnum
+  popCount = Bits.popCount . fromEnum
 
 instance FiniteBits Fun where
   finiteBitSize _ = 4
