@@ -56,7 +56,7 @@ class Permutable s where
   default perm :: (Generic s, GPermutable (Rep s)) => Permutation -> s -> s
   perm p = to . gperm p . from
 
-instance Permutable Atom where 
+instance Permutable Atom where
   perm (Permutation t _) i = permTree t i
 
 instance Permutable Permutation where
@@ -104,7 +104,7 @@ class Permutable1 f where
   perm1 f p = to1 . gperm1 f p . from1
 
 instance Permutable1 Proxy
-instance Permutable1 [] 
+instance Permutable1 []
 instance Permutable1 Maybe
 instance Permutable a => Permutable1 ((,)a)
 instance Permutable a => Permutable1 (Either a)
@@ -120,7 +120,7 @@ instance Permutable1 Trie where
 
 class Permutable s => Nominal s where
   -- | The usual convention in nominal sets is to say something like:
-  -- 
+  --
   -- @
   -- if (forall x in supp s. perm p x = x) then perm p s = s
   -- @
@@ -203,7 +203,7 @@ instance NominalSemigroup Support
 --------------------------------------------------------------------------------
 -- * Nominal Monoids
 --------------------------------------------------------------------------------
-  
+
 -- | perm is a unital group action
 --
 -- @
@@ -235,7 +235,7 @@ instance GPermutable V1 where
 
 instance GPermutable U1 where
   gperm _ U1 = U1
-  
+
 instance (GPermutable f, GPermutable g) => GPermutable (f :*: g) where
   gperm p (a :*: b) = gperm p a :*: gperm p b
 
@@ -260,7 +260,7 @@ instance GPermutable1 V1 where
 
 instance GPermutable1 U1 where
   gperm1 _ _ U1 = U1
-  
+
 instance (GPermutable1 f, GPermutable1 g) => GPermutable1 (f :*: g) where
   gperm1 f p (a :*: b) = gperm1 f p a :*: gperm1 f p b
 

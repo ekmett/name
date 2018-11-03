@@ -53,7 +53,7 @@ rcycles (Permutation t0 _) = go t0 where
     Nothing -> error $ show (m,e,t)
     Just n | n == m -> (Tree (delete e t), [e])
            | otherwise -> (e:) <$> peel m n (Tree (delete e t))
-    
+
 {-
    case t & at e <<.~ Nothing of
     (Just n, t') | n == m    -> (Tree t', [e])

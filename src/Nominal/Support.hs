@@ -20,7 +20,7 @@ data Support where
   Supp :: Ord a => Trie a -> Support
 
 instance Show Support where
-  showsPrec d xs = showParen (d > 10) $ 
+  showsPrec d xs = showParen (d > 10) $
      showString "Supp " . showsPrec 11 (canonical xs)
 
 -- temp
@@ -86,18 +86,18 @@ instance PartialOrder Support where
   -- {{x},{y},U-{x,y}} ⊆ {{x,y},U-{x,y}}
   -- But {{x},U-{x}} is not ⊆ {{x,y},U-{x,y}}
   Supp xs ⊆ Supp ys = cond1 && cond2 where
-    cond1 = null (diff ys xs) 
-    cond2 = snd $ execState (itraverse_ go xs) (Map.empty, True) 
+    cond1 = null (diff ys xs)
+    cond2 = snd $ execState (itraverse_ go xs) (Map.empty, True)
     -- go :: (Ord x, Ord y) => Atom -> x -> State (Map x (Maybe y), Bool) ()
     go n x = use (_1.at x) >>= \case
       Just my' | my' == my -> pure ()
                | otherwise -> _2 .= False
       Nothing -> _1.at x ?= my
       where my = ys^.at n
-  
+
 instance Eq Support where
   xs == ys = canonical xs == canonical ys
-    
+
 instance Meet Support where
   Supp xs ∧ Supp ys = Supp $ canonical $ Supp $
     imerge (\_ x y -> Just $ These x y) (fmap This) (fmap That) xs ys

@@ -79,7 +79,7 @@ instance (BoundedJoin a, BoundedJoin b) => BoundedJoin (a, b) where
 
 instance Ord a => BoundedJoin (Set a) where
   bottom = Set.empty
-  
+
 instance BoundedJoin IntSet where
   bottom = IntSet.empty
 
@@ -93,7 +93,7 @@ instance Join a => BoundedJoin (Maybe a) where
 -- * Meet Semilattices
 --------------------------------------------------------------------------------
 
--- Meet semilattice. 
+-- Meet semilattice.
 -- @
 -- x ∧ x = x
 -- (x ∧ y) ∧ z = x ∧ (y ∧ z)
@@ -195,7 +195,7 @@ instance GBA Bool where
 
 instance (GBA a, GBA b) => GBA (a, b) where
   (a, b) \\ (c,d) = (a \\ c, b \\ d)
- 
+
   xor (a,b) (c,d) = (xor a c, xor b d)
 
 instance Ord a => GBA (Set a) where
@@ -234,7 +234,7 @@ instance Boolean () where
 instance Boolean Bool where
   neg = not
   implies = (<=)
-  iff = (==) 
+  iff = (==)
 
 instance (Boolean a, Boolean b) => Boolean (a, b) where
   neg (a, b) = (neg a, neg b)

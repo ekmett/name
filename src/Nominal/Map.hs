@@ -8,7 +8,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Map 
+module Nominal.Map
 ( Map
 , union            -- :: NominalSemigroup a => Map a -> Map a -> Map a
 , intersectionWith -- :: (a -> b -> c) -> Map a -> Map b -> Map c

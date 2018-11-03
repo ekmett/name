@@ -29,9 +29,9 @@ newtype Tree = Tree (Trie Atom)
   deriving (Eq,Show)
 
 permTree :: Tree -> Atom -> Atom
-permTree (Tree t) a = fromMaybe a $ lookup a t 
+permTree (Tree t) a = fromMaybe a $ lookup a t
 
-squareTree :: Tree -> Tree 
+squareTree :: Tree -> Tree
 squareTree (Tree t) = Tree $ ifilterMap go t where
   go i j = mfilter (i/=) $ lookup j t
 

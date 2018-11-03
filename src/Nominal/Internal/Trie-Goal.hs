@@ -118,7 +118,7 @@ small :: Natural -> Offset -> Mask -> SmallArray (Trie v) -> Trie v
 small k o 0xffff a = Full k o a
 small k o m a = case compare (length a) 1 of
   LT -> Nil
-  EQ -> indexSmallArray a 0 
+  EQ -> indexSmallArray a 0
   GT -> Node k o m a
 {-# inline small #-}
 
@@ -292,7 +292,7 @@ meld flr fl fr = go where
     | otherwise = case go l (indexSmallArray as odm) of
       Nil -> small rk rn (rm .&. complement b) (deleteSmallArray odm ra)
       z   -> Node rk rn rm (updateSmallArray odm z as)
-    where 
+    where
       okk = xor lk rk
       wd = unsafeShiftR okk rn
       b = bit (fromIntegral wd)
@@ -305,7 +305,7 @@ unionWithKey :: (Atom -> a -> a -> a) -> Trie a -> Trie a -> Trie a
 unionWithKey f = go where
   go Nil r = r
   go l Nil = l
-  go nn@(Tip k v) on@(Tip ok ov) 
+  go nn@(Tip k v) on@(Tip ok ov)
     | k /= ok       = fork (level (xor ok k)) k nn ok on
     | !uv <- f (A k) v ov = if ptrEq v uv then nn else Tip k uv
   go nn@(Tip k _) on@(Node ok n m as)
@@ -317,7 +317,7 @@ unionWithKey f = go where
       okk = xor ok k
       wd  = unsafeShiftR okk n
       b   = bit (fromIntegral wd)
-      odm = popCount $ m .&. (b - 1) 
+      odm = popCount $ m .&. (b - 1)
   go nn@(Tip k _) on@(Full ok n as)
     | wd > 0xf = fork (level okk) k nn ok on
     | !oz <- indexSmallArray as d, !z <- go nn oz, ptrNeq z oz = Full ok n (update16 d z as)
@@ -335,7 +335,7 @@ unionWithKey f = go where
       okk = xor ok k
       wd  = unsafeShiftR okk n
       b   = bit (fromIntegral wd)
-      odm = popCount $ m .&. (b - 1) 
+      odm = popCount $ m .&. (b - 1)
   go on@(Full ok n as) nn@(Tip k _)
     | wd > 0xf = fork (level okk) k nn ok on
     | !oz <- indexSmallArray as d, !z <- go oz nn, ptrNeq z oz = Full ok n (update16 d z as)
@@ -362,11 +362,11 @@ unionWithKey f = go where
     where
       okk = xor lk rk
       wd = unsafeShiftR okk (min ln rn)
-      tweak d lx 
+      tweak d lx
         | rm .&. b == 0 = lx -- missing on right
         | otherwise = go lx $ indexSmallArray ra $ popCount $ rm .&. (b - 1)
         where b = bit d
-  go l@(Node lk ln lm la) r@(Full rk rn ra) 
+  go l@(Node lk ln lm la) r@(Full rk rn ra)
     | wd > 0xf = fork (level okk) lk l rk r
     | !ua <- mapSmallArrayWithIndex tweak ra = maybe (Full rk rn ua) (const r) $ for 0 16 $ \i -> do
        x <- indexSmallArrayM la i
@@ -375,11 +375,11 @@ unionWithKey f = go where
     where
        okk = xor lk rk
        wd = unsafeShiftR okk (min ln rn)
-       tweak d rx 
+       tweak d rx
          | lm .&. b == 0 = rx -- missing on right
          | otherwise = go (indexSmallArray la $ popCount $ lm .&. (b-1)) rx
          where b = bit d
-  go l@(Node lk ln lm la) r@(Node rk rn rm ra) 
+  go l@(Node lk ln lm la) r@(Node rk rn rm ra)
     | wd > 0xf = fork (level okk) lk l rk r
     | otherwise = runST $ do -- TODO: check sharing while we go
         let um = lm .|. rm
@@ -396,7 +396,7 @@ unionWithKey f = go where
                 | otherwise -> do
                   lx <- indexSmallArrayM la li
                   rx <- indexSmallArrayM ra ri
-                  let !ux = go lx rx 
+                  let !ux = go lx rx
                   ptrEq lx ux <$ writeSmallArray uma i ux
               loop (cm .&. complement b) (i+1) (acc && same)
         same <- loop um 0 (lm == um)
@@ -406,7 +406,7 @@ unionWithKey f = go where
     where
        okk = xor lk rk
        wd = unsafeShiftR okk (min ln rn)
-        
+
 union :: Trie a -> Trie a -> Trie a
 union = unionWith const
 {-# inline union #-}
@@ -420,7 +420,7 @@ intersectionWith :: (a -> b -> c) -> Trie a -> Trie b -> Trie c
 intersectionWith = intersectionWithKey . const
 
 intersectionWithKey :: (Atom -> a -> b -> c) -> Trie a -> Trie b -> Trie c
-intersectionWithKey f = go where 
+intersectionWithKey f = go where
   go Nil _ = Nil
   go _ Nil = Nil
   go (Tip lk lv) r = case lookup (A lk) r of
@@ -431,7 +431,7 @@ intersectionWithKey f = go where
     Just lv -> Tip rk (f (A rk) lv rv)
   go l@(Node lk ln lm la) r@(Node rk rn rm ra)
     | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
+    | otherwise = case compare ln rn of
       LT | rb .&. rm == 0 -> Nil
       LT -> go l $ indexSmallArray ra $ popCount $ rm .&. (rb-1) -- lookup
       GT | lb .&. lm == 0 -> Nil -- contained, but disjoint
@@ -456,7 +456,7 @@ intersectionWithKey f = go where
       lb = bit (fromIntegral (unsafeShiftR okk ln))
   go l@(Full lk ln la) r@(Node rk rn rm ra)
     | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
+    | otherwise = case compare ln rn of
       LT | rb .&. rm == 0 -> Nil
       LT -> go l $ indexSmallArray ra $ popCount $ rm .&. (rb-1)
       GT -> go (indexSmallArray la ld) r
@@ -480,7 +480,7 @@ intersectionWithKey f = go where
       ld = fromIntegral (unsafeShiftR okk ln)
   go l@(Node lk ln lm la) r@(Full rk rn ra)
     | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
+    | otherwise = case compare ln rn of
       LT -> go l (indexSmallArray ra rd)
       GT | lb .&. lm == 0 -> Nil -- contained, but disjoint
       GT -> go (indexSmallArray la $ popCount $ lm .&. (lb-1)) r -- lookup
@@ -492,7 +492,7 @@ intersectionWithKey f = go where
             loop cm i um = do
               let !d = countTrailingZeros cm
                   !b = bit d
-              lx <- indexSmallArrayM la $ popCount $ lm .&. (b-1) 
+              lx <- indexSmallArrayM la $ popCount $ lm .&. (b-1)
               rx <- indexSmallArrayM ra d
               case go lx rx of
                 Nil -> loop (cm .&. complement b) i um -- dropped
@@ -504,7 +504,7 @@ intersectionWithKey f = go where
       lb = bit (fromIntegral (unsafeShiftR okk ln))
   go l@(Full lk ln la) r@(Full rk rn ra)
     | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
+    | otherwise = case compare ln rn of
       LT -> go l (indexSmallArray ra rd)
       GT -> go (indexSmallArray la ld) r
       EQ -> runST $ do
@@ -552,7 +552,7 @@ ifilterMap f = go where
           else freezeSmallArray cma 0 i
         loop d i um = do
           let !b = bit d
-          oz <- indexSmallArrayM oa d 
+          oz <- indexSmallArrayM oa d
           case go oz of
             Nil -> loop (d+1) i um
             z -> writeSmallArray cma i z >> loop (d+1) (i+1) (um .|. b)
@@ -570,7 +570,7 @@ ifilter p = go where
     | otherwise = Nil
   go l@(Node ok on om oa) = runST $ do
     cma <- newSmallArray (length oa) undefined
-    let loop 0 !i !um acc 
+    let loop 0 !i !um acc
           | acc = pure l
           | otherwise = small ok on um <$> if um == om
           then unsafeFreezeSmallArray cma
@@ -584,14 +584,14 @@ ifilter p = go where
     loop om 0 0 True
   go l@(Full ok on oa) = runST $ do
     cma <- newSmallArray 16 undefined
-    let loop 16 !i !um acc 
+    let loop 16 !i !um acc
           | acc = pure l
           | otherwise = small ok on um <$> if i == 16
           then unsafeFreezeSmallArray cma
           else freezeSmallArray cma 0 i
         loop d i um acc = do
           let !b = bit d
-          oz <- indexSmallArrayM oa d 
+          oz <- indexSmallArrayM oa d
           case go oz of
             Nil -> loop (d+1) i um False
             z -> writeSmallArray cma i z >> loop (d+1) (i+1) (um .|. b) (acc && ptrEq z oz)
@@ -606,7 +606,7 @@ diff l@(NODE lk ln lm la) r@(NODE rk rn rm ra) = case compare ln rn of
     EQ | lm .&. rm == 0 -> l
     EQ -> runST $ do
       cma <- newSmallArray (length la) undefined
-      let loop 0 !i !um = small lk ln um <$> if um == lm 
+      let loop 0 !i !um = small lk ln um <$> if um == lm
             then unsafeFreezeSmallArray cma
             else freezeSmallArray cma 0 i
           loop cm i um = do
@@ -621,7 +621,7 @@ diff l@(NODE lk ln lm la) r@(NODE rk rn rm ra) = case compare ln rn of
                 case diff x y of
                   Nil -> loop (cm .&. complement b) i um
                   z -> writeSmallArray cma i z >> loop (cm .&. complement b) (i+1) (um .|. b)
-      loop lm 0 0 
+      loop lm 0 0
     LT | rm .&. rb == 0 -> l
     LT -> diff l $ indexSmallArray ra $ popCount $ rm .&. (rb - 1) -- otherwise
     GT | lm .&. lb == 0 -> l
@@ -640,12 +640,12 @@ diff l@(NODE lk ln lm la) r@(NODE rk rn rm ra) = case compare ln rn of
     rb = bit rd
     ld = fromIntegral (unsafeShiftR okk ln)
     lb = bit ld
-  
+
 delete :: Atom -> Trie v -> Trie v
 delete !(A k) xs0 = go xs0 where
   go on@(Full ok n as)
     | wd > 0xf = on
-    | !oz <- indexSmallArray as d, !z <- go oz, ptrNeq z oz = case z of 
+    | !oz <- indexSmallArray as d, !z <- go oz, ptrNeq z oz = case z of
        Nil -> Node ok n (complement b) (deleteSmallArray d as)
        _   -> Full ok n (update16 d z as)
     | otherwise = on
@@ -654,11 +654,11 @@ delete !(A k) xs0 = go xs0 where
       wd  = unsafeShiftR okk n
       d   = fromIntegral wd
       b   = bit d
-  go on@(Node ok n m as) 
+  go on@(Node ok n m as)
     | wd > 0xf     = on -- above us
     | m .&. b == 0 = on -- not present in this node
     | !oz <- indexSmallArray as odm, !z <- go oz, ptrNeq z oz = case z of
-      Nil 
+      Nil
         | single m' -> indexSmallArray as (complementBit odm 0) -- we're down to one thing in the mask, delete the Node
         | otherwise -> Node ok n m' (deleteSmallArray odm as) -- deleting one node from a mask with 3+ entries
       _   -> Node ok n m (updateSmallArray odm z as)
@@ -669,7 +669,7 @@ delete !(A k) xs0 = go xs0 where
       b = bit (fromIntegral wd)
       odm = popCount $ m .&. (b - 1)
       m' = m .&. complement b
-  go on@(Tip ok _) 
+  go on@(Tip ok _)
     | k /= ok = on
     | otherwise = Nil
   go Nil = Nil
@@ -763,7 +763,7 @@ mapSmallArrayWithIndex f i = runST $ do
   let n = length i
   o <- newSmallArray n (undefined :: b)
   for 0 n $ \k -> do
-    x <- indexSmallArrayM i k 
+    x <- indexSmallArrayM i k
     writeSmallArray o k $! f k x
   unsafeFreezeSmallArray o
 {-# inline mapSmallArrayWithIndex #-}
@@ -799,7 +799,7 @@ data Predicate = Finite Set | Cofinite Set
 
 data Map a = Map Support (Trie a) -- memoized approximate support
 
-class Permutable t where 
+class Permutable t where
   perm :: Permutation -> t -> t
 
 class Permutable t => Nominal t where

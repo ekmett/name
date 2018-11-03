@@ -102,7 +102,7 @@ unionWith f (Trie a) (Trie b) = Trie $ Map.unionWith f a b
 
 unionWithKey :: (Atom -> a -> a -> a) -> Trie a -> Trie a -> Trie a
 unionWithKey f (Trie a) (Trie b) = Trie $ Map.unionWithKey f a b
-        
+
 union :: Trie a -> Trie a -> Trie a
 union (Trie a) (Trie b) = Trie (Map.union a b)
 {-# inline union #-}
@@ -142,7 +142,7 @@ ipartition f (Trie m) = (Trie *** Trie) $ Map.partitionWithKey f m
 
 diff :: Trie a -> Trie b -> Trie a
 diff (Trie m) (Trie n) = Trie (Map.difference m n)
-  
+
 delete :: Atom -> Trie v -> Trie v
 delete !k (Trie m) = Trie (Map.delete k m)
 
@@ -183,7 +183,7 @@ disjoint :: Trie a -> Trie b -> Bool
 disjoint m n = null (intersection m n)
 
 imerge
-  :: (Atom -> a -> b -> Maybe c) 
+  :: (Atom -> a -> b -> Maybe c)
   -> (Trie a -> Trie c)
   -> (Trie b -> Trie c)
   -> Trie a -> Trie b -> Trie c

@@ -27,7 +27,7 @@ data Fun = TNever | TAnd | TGt | TF | TLt | TG | TXor | TOr | TNor | TXnor | TG'
 
 instance Join Fun where
   f ∨ g = toEnum (fromEnum f Bits..|. fromEnum g)
-  
+
 instance BoundedJoin Fun where
   bottom = TNever
 

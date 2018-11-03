@@ -47,13 +47,13 @@ intersectionWith :: (a -> b -> c) -> Map a -> Map b -> Map c
 intersectionWith f (Map s0 t0) (Map s1 t1) = case Trie.intersectionWith f t0 t1 of
   Empty -> Map mempty Empty
   t     -> Map (s0 <> s1) t
-  
+
 -- nominal
 intersection :: Map a -> Map a -> Map a
 intersection (Map s0 t0) (Map _ t1) = case Trie.intersection t0 t1 of
   Empty -> Map mempty Empty
   t     -> Map s0 t
-  
+
 -- nominal
 diff :: Nominal s => Map a -> s -> Map a
 diff (Map s0 t0) (supp -> Supp t1) = case Trie.diff t0 t1 of
@@ -76,7 +76,7 @@ delete i (Map s0 t0) = case Trie.delete i t0 of
 
 -- nominal
 insert :: Nominal a => Atom -> a -> Map a -> Map a
-insert v a (Map s t) = Map (supp v <> supp a <> s) $ Trie.insert v a t 
+insert v a (Map s t) = Map (supp v <> supp a <> s) $ Trie.insert v a t
 
 -- nominal
 singleton :: Nominal a => Atom -> a -> Map a

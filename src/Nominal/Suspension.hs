@@ -16,7 +16,7 @@ import Nominal.Class
 import Nominal.Permutation
 
 -- semi-direct product of a permutation and a nominal monoid
-data Suspended a = Suspended Permutation a 
+data Suspended a = Suspended Permutation a
   deriving (Functor, Foldable, Traversable)
 
 instance Applicative Suspended where
@@ -35,7 +35,7 @@ instance Nominal a => Nominal (Suspended a) where
 
 instance NominalSemigroup a => Semigroup (Suspended a) where
   Suspended p a <> Suspended q b = Suspended (p <> q) (a <> perm p b)
-  
+
 instance NominalMonoid a => Monoid (Suspended a) where
   mempty = Suspended mempty mempty
 
