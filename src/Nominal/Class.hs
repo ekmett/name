@@ -33,7 +33,7 @@ import Data.Functor.Contravariant.Generic
 import Data.Proxy
 import Data.Void
 import GHC.Generics
-import Nominal.Internal.Atom
+import Nominal.Internal.Trie (Atom(..))
 import Nominal.Internal.Permutation
 import Nominal.Internal.Set
 import Nominal.Supported
@@ -96,6 +96,8 @@ instance Perm1 f => GPerm1 (Rec1 f) where
   gperm1 f p (Rec1 a) = Rec1 (perm1 f p a)
 
 class Perm s where
+  -- perm mempty = id
+  -- perm (p <> q) = perm p . perm q
   perm :: Permutation -> s -> s
   default perm :: (Generic s, GPerm (Rep s)) => Permutation -> s -> s
   perm p = to . gperm p . from
@@ -151,6 +153,7 @@ instance Perm a => Perm1 ((,)a)
 instance Perm a => Perm1 (Either a)
 
 class Perm s => Nominal s where
+  -- if (forall x. member x (supp s) => perm p x = x) then perm p s = s
   supp :: s -> Set
   default supp :: Deciding Nominal s => s -> Set
   supp = getSupported $ deciding (Proxy :: Proxy Nominal) (Supported supp)

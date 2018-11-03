@@ -24,19 +24,19 @@ module Nominal.Permutation
 , conjugacyClass
 ) where
 
-import Control.Lens
+-- import Control.Lens
 import Control.Monad
 import Data.Bits
 import Data.List (groupBy, sort)
-import Data.Semigroup
-import Nominal.Internal.Atom
+import Nominal.Internal.Trie (Atom(..), insert, delete, lookup, Trie(..))
 import Nominal.Internal.Permutation
-import Numeric.Natural
-import Prelude hiding (elem)
+import Prelude hiding (elem, lookup)
 
 -- nominal
 swap :: Atom -> Atom -> Permutation
-swap (A i) (A j) = join Permutation $ Tip & elem j .~ i & elem i .~ j
+swap i j
+  | i /= j = join Permutation $ Tree $ insert i j $ insert j i Nil
+  | otherwise = mempty
 
 -- | This is not quite natural order, as its easiest for me to find the largest element and work backwards.
 -- for natural order, reverse the list of cycles. Not a nominal arrow
@@ -44,14 +44,22 @@ rcycles :: Permutation -> [[Atom]]
 rcycles (Permutation t0 _) = go t0 where
   go t = case supTree t of
     Nothing -> []
-    Just (Max m) -> case peel m m t of
+    Just m -> case peel m m t of
       (t',xs) -> xs : go t'
 
   -- mangles the tree to remove this cycle as we go
-  peel :: Natural -> Natural -> Tree -> (Tree, [Atom])
-  peel m e t = case t & elem e <<.~ e of
-    (n, t') | n == m    -> (t', [A e])
-            | otherwise -> (A e :) <$> peel m n t'
+  peel :: Atom -> Atom -> Tree -> (Tree, [Atom])
+  peel m e (Tree t) = case lookup e t of
+    Nothing -> error $ show (m,e,t)
+    Just n | n == m -> (Tree (delete e t), [e])
+           | otherwise -> (e:) <$> peel m n (Tree (delete e t))
+    
+{-
+   case t & at e <<.~ Nothing of
+    (Just n, t') | n == m    -> (Tree t', [e])
+                 | otherwise -> (e :) <$> peel m n (Tree t')
+    (Nothing, t') -> (Tree t', [e])
+-}
 
 -- | standard cyclic representation of a permutation, broken into parts. Not nominal
 cycles :: Permutation -> [[Atom]]

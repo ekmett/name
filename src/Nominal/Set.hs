@@ -25,7 +25,7 @@ module Nominal.Set
 
 import Control.Lens
 import Nominal.Class
-import Nominal.Internal.Atom
+import Nominal.Internal.Trie (Atom(..))
 import qualified Nominal.Internal.Set as Set
 import Nominal.Internal.Set (Set(..), depth)
 

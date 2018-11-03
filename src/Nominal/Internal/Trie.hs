@@ -15,6 +15,7 @@
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE GADTs #-}
 {-# OPTIONS_GHC -Wall -funbox-strict-fields -fno-warn-orphans -fno-warn-type-defaults -O2 #-}
 #ifdef ST_HACK
@@ -49,6 +50,7 @@ import Data.Bits
 import Data.Foldable
 import Data.Functor.Bind
 import Data.Int
+import Data.Maybe
 import Data.Monoid
 import Data.Primitive.SmallArray
 import Data.Word
@@ -58,6 +60,10 @@ import GHC.ST
 import GHC.Types
 import Numeric.Natural
 import Prelude hiding (lookup, length, foldr)
+
+newtype Atom = A Natural deriving (Eq,Num) -- Num only for convenience
+instance Show Atom where
+  showsPrec d (A n) = showsPrec d n
 
 type Mask = Word16
 type Offset = Int
@@ -78,8 +84,20 @@ data Trie v
   | Nil
   deriving Show
 
+-- valid :: Trie v -> Bool
+-- valid Nil = True
+-- valid Tip{} = True
+-- valid (Node n o m a) = all (iall (\j _ -> unsafeShiftR (xor j n) == 0)) as -- <= 0xf?
+
 {-# COMPLETE Full, Node, Tip, Nil #-}
 {-# COMPLETE NODE, Tip, Nil #-}
+
+instance Eq a => Eq (Trie a) where
+  xs == ys = itoList xs == itoList ys
+
+instance Ord a => Ord (Trie a) where
+  compare xs ys = tweak xs `compare` tweak ys where
+    tweak = ifoldr (\(A i) a r -> (i,a):r) []
 
 asNode :: Trie v -> Maybe (Natural, Offset, Mask, SmallArray (Trie v))
 asNode Nil = Nothing
@@ -105,9 +123,9 @@ small k o m a = case compare (length a) 1 of
 {-# inline small #-}
 
 -- find the largest key contained in this map
-sup :: Trie v -> Maybe Natural
+sup :: Trie v -> Maybe Atom
 sup Nil = Nothing
-sup (Tip k _) = Just k
+sup (Tip k _) = Just (A k)
 sup (Node _ _ m a) = indexSmallArrayM a (popCount m - 1) >>= sup
 sup (Full _ _ a) = indexSmallArrayM a 15 >>= sup
 
@@ -140,26 +158,26 @@ instance Traversable Trie where
     go Nil = pure Nil
   {-# inline traverse #-}
 
-instance FunctorWithIndex Natural Trie where
+instance FunctorWithIndex Atom Trie where
   imap f = go where
     go (Full k o a) = Full k o (fmap go a)
     go (Node k o m a) = Node k o m (fmap go a)
-    go (Tip k v) = Tip k (f k v)
+    go (Tip k v) = Tip k (f (A k) v)
     go Nil = Nil
   {-# inline imap #-}
 
-instance FoldableWithIndex Natural Trie where
+instance FoldableWithIndex Atom Trie where
   ifoldMap f = go where
     go (Full _ _ a) = foldMap go a
     go (Node _ _ _ a) = foldMap go a
-    go (Tip k v) = f k v
+    go (Tip k v) = f (A k) v
     go Nil = mempty
 
-instance TraversableWithIndex Natural Trie where
+instance TraversableWithIndex Atom Trie where
   itraverse f = go where
     go (Full k o a) = Full k o <$> traverse go a
     go (Node k o m a) = Node k o m <$> traverse go a
-    go (Tip k v) = Tip k <$> f k v
+    go (Tip k v) = Tip k <$> f (A k) v
     go Nil = pure Nil
   {-# inline itraverse #-}
 
@@ -193,14 +211,19 @@ start o k = fromInteger (toInteger k .&. unsafeShiftL (-1) (o+4))
 -- offset k w = popCount $ w .&. (bit k - 1)
 -- {-# inline offset #-}
 
+forkx :: Int -> Natural -> Trie v -> Natural -> Trie v -> Trie v
+forkx _ _ Nil _ r = r
+forkx _ _ l _ Nil = l
+forkx o k n ok on = fork o k n ok on
+
 fork :: Int -> Natural -> Trie v -> Natural -> Trie v -> Trie v
 fork o k n ok on = Node (start o k) o (mask k o .|. mask ok o) $ runST $ do
   arr <- newSmallArray 2 n
   writeSmallArray arr (fromEnum (k < ok)) on
   unsafeFreezeSmallArray arr
 
-insert :: Natural -> v -> Trie v -> Trie v
-insert !k v xs0 = go xs0 where
+insert :: Atom -> v -> Trie v -> Trie v
+insert !(A k) v xs0 = go xs0 where
   go on@(Full ok n as)
     | wd > 0xf = fork (level okk) k (Tip k v) ok on
     | !oz <- indexSmallArray as d, !z <- go oz, ptrNeq z oz = Full ok n (update16 d z as)
@@ -242,13 +265,49 @@ instance Semigroup a => Monoid (Trie a) where
   mempty = Nil
   {-# inline mempty #-}
 
-unionWith :: (v -> v -> v) -> Trie v -> Trie v -> Trie v
-unionWith f = go where
+unionWith :: (a -> a -> a) -> Trie a -> Trie a -> Trie a
+unionWith = unionWithKey . const
+{-# inline unionWith #-}
+
+data These a b = This a | That b | These a b
+
+meld :: (Atom -> These a b -> Maybe c) -> Trie a -> Trie b -> Trie c
+meld f a b = ifilterMap f $ unionWith (\(This x) (That y) -> These x y) (This <$> a) (That <$> b)
+
+{-
+meld flr fl fr = go where
+  go Nil Nil = Nil
+  go Nil r = ifilterMap fr r
+  go l Nil = ifilterMap fl l
+  go l@(Tip lk lv) r@(Tip rk rv)
+    | lk == rk  = case flr (A lk) lv rv of
+      Nothing -> Nil
+      Just c -> Tip lk c
+    | otherwise = forkx (level (xor lk rk)) lk (ifilterMap fl l) rk (ifilterMap fr r)
+  go l@(Tip lk lv) r@(NODE rk rn rm ra)
+    | wd > 0xf = forkx (level okk) lk (ifilterMap fl l) rk (ifilterMap fr r)
+    | rm .&. b == 0 = case ifilterMap fl l of
+      Nil -> ifilterMap fr r
+      z   -> node rk rn (rm .|. b) (insertSmallArray odm z ra)
+    | otherwise = case go l (indexSmallArray as odm) of
+      Nil -> small rk rn (rm .&. complement b) (deleteSmallArray odm ra)
+      z   -> Node rk rn rm (updateSmallArray odm z as)
+    where 
+      okk = xor lk rk
+      wd = unsafeShiftR okk rn
+      b = bit (fromIntegral wd)
+      odm = popCount $ rm .&. (b-1)
+  ...
+-}
+
+
+unionWithKey :: (Atom -> a -> a -> a) -> Trie a -> Trie a -> Trie a
+unionWithKey f = go where
   go Nil r = r
   go l Nil = l
   go nn@(Tip k v) on@(Tip ok ov) 
     | k /= ok       = fork (level (xor ok k)) k nn ok on
-    | !uv <- f v ov = if ptrEq v uv then nn else Tip k uv
+    | !uv <- f (A k) v ov = if ptrEq v uv then nn else Tip k uv
   go nn@(Tip k _) on@(Node ok n m as)
     | wd > 0xf = fork (level okk) k nn ok on
     | m .&. b == 0 = node ok n (m .|. b) (insertSmallArray odm nn as)
@@ -348,25 +407,28 @@ unionWith f = go where
        okk = xor lk rk
        wd = unsafeShiftR okk (min ln rn)
         
-union :: Trie v -> Trie v -> Trie v
+union :: Trie a -> Trie a -> Trie a
 union = unionWith const
 {-# inline union #-}
 
-intersection :: Trie v -> Trie v -> Trie v
+intersection :: Trie a -> Trie a -> Trie a
 intersection = intersectionWith const
 {-# inline intersection #-}
 
 -- segfaults
 intersectionWith :: (a -> b -> c) -> Trie a -> Trie b -> Trie c
-intersectionWith f = go where 
+intersectionWith = intersectionWithKey . const
+
+intersectionWithKey :: (Atom -> a -> b -> c) -> Trie a -> Trie b -> Trie c
+intersectionWithKey f = go where 
   go Nil _ = Nil
   go _ Nil = Nil
-  go (Tip lk lv) r = case lookup lk r of
+  go (Tip lk lv) r = case lookup (A lk) r of
     Nothing -> Nil
-    Just rv -> Tip lk (f lv rv)
-  go l (Tip rk rv) = case lookup rk l of
+    Just rv -> Tip lk (f (A lk) lv rv)
+  go l (Tip rk rv) = case lookup (A rk) l of
     Nothing -> Nil
-    Just lv -> Tip rk (f lv rv)
+    Just lv -> Tip rk (f (A rk) lv rv)
   go l@(Node lk ln lm la) r@(Node rk rn rm ra)
     | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
     | otherwise = case compare ln rn of 
@@ -465,10 +527,10 @@ filterMap :: (a -> Maybe b) -> Trie a -> Trie b
 filterMap = ifilterMap . const
 {-# inline filterMap #-}
 
-ifilterMap :: (Natural -> a -> Maybe b) -> Trie a -> Trie b
+ifilterMap :: (Atom -> a -> Maybe b) -> Trie a -> Trie b
 ifilterMap f = go where
   go Nil = Nil
-  go (Tip k v) = case f k v of
+  go (Tip k v) = case f (A k) v of
     Nothing -> Nil
     Just u -> Tip k u
   go (Node ok on om oa) = runST $ do
@@ -500,13 +562,12 @@ filter :: (a -> Bool) -> Trie a -> Trie a
 filter = ifilter . const
 {-# inline filter #-}
 
-ifilter :: (Natural -> a -> Bool) -> Trie a -> Trie a
-ifilter p = go
+ifilter :: (Atom -> a -> Bool) -> Trie a -> Trie a
+ifilter p = go where
   go Nil = Nil
   go l@(Tip k v)
-    | p k v -> l
-    | otherwise -> Nil
-    Just u -> Tip k u
+    | p (A k) v = l
+    | otherwise = Nil
   go l@(Node ok on om oa) = runST $ do
     cma <- newSmallArray (length oa) undefined
     let loop 0 !i !um acc 
@@ -521,14 +582,14 @@ ifilter p = go
             Nil -> loop (cm .&. complement b) i um False
             z -> writeSmallArray cma i z >> loop (cm .&. complement b) (i+1) (um .|. b) (acc && ptrEq z oz)
     loop om 0 0 True
-  go (Full ok on oa) = runST $ do
+  go l@(Full ok on oa) = runST $ do
     cma <- newSmallArray 16 undefined
     let loop 16 !i !um acc 
-          | acc = pure l 
+          | acc = pure l
           | otherwise = small ok on um <$> if i == 16
           then unsafeFreezeSmallArray cma
           else freezeSmallArray cma 0 i
-        loop d i um = do
+        loop d i um acc = do
           let !b = bit d
           oz <- indexSmallArrayM oa d 
           case go oz of
@@ -539,8 +600,8 @@ ifilter p = go
 diff :: Trie a -> Trie b -> Trie a
 diff t Nil = t
 diff Nil _ = Nil
-diff l (Tip k _) = delete k l
-diff l@(Tip lk _) r = maybe l (const Nil) $ lookup lk r
+diff l (Tip k _) = delete (A k) l
+diff l@(Tip lk _) r = maybe l (const Nil) $ lookup (A lk) r
 diff l@(NODE lk ln lm la) r@(NODE rk rn rm ra) = case compare ln rn of
     EQ | lm .&. rm == 0 -> l
     EQ -> runST $ do
@@ -580,8 +641,8 @@ diff l@(NODE lk ln lm la) r@(NODE rk rn rm ra) = case compare ln rn of
     ld = fromIntegral (unsafeShiftR okk ln)
     lb = bit ld
   
-delete :: Natural -> Trie v -> Trie v
-delete !k xs0 = go xs0 where
+delete :: Atom -> Trie v -> Trie v
+delete !(A k) xs0 = go xs0 where
   go on@(Full ok n as)
     | wd > 0xf = on
     | !oz <- indexSmallArray as d, !z <- go oz, ptrNeq z oz = case z of 
@@ -613,28 +674,31 @@ delete !k xs0 = go xs0 where
     | otherwise = Nil
   go Nil = Nil
 
-lookup :: Natural -> Trie v -> Maybe v
-lookup !k (Full ok o a)
-  | z <- unsafeShiftR (xor k ok) o, z <= 0xf = lookup k $ indexSmallArray a (fromIntegral z)
+(!) :: Trie v -> Atom -> v
+(!) t a = fromMaybe (error "Trie.!: missing atom") $ lookup a t
+
+lookup :: Atom -> Trie v -> Maybe v
+lookup !ak@(A k) (Full ok o a)
+  | z <- unsafeShiftR (xor k ok) o, z <= 0xf = lookup ak $ indexSmallArray a (fromIntegral z)
   | otherwise = Nothing
-lookup k (Node ok o m a)
-  | z <= 0xf, m .&. b /= 0 = lookup k $ indexSmallArray a $ popCount $ m .&. (b - 1)
+lookup ak@(A k) (Node ok o m a)
+  | z <= 0xf, m .&. b /= 0 = lookup ak $ indexSmallArray a $ popCount $ m .&. (b - 1)
   | otherwise = Nothing
   where z = unsafeShiftR (xor k ok) o; b = bit (fromIntegral z)
-lookup k (Tip ok ov)
+lookup (A k) (Tip ok ov)
   | k == ok   = Just ov
   | otherwise = Nothing
 lookup _ Nil = Nothing
 {-# inlineable lookup #-}
 
-member :: Natural -> Trie v -> Bool
-member !k (Full ok o a)
-  | z <- unsafeShiftR (xor k ok) o = z <= 0xf && member k (indexSmallArray a (fromIntegral z))
-member k (Node ok o m a)
+member :: Atom -> Trie v -> Bool
+member !ak@(A k) (Full ok o a)
+  | z <- unsafeShiftR (xor k ok) o = z <= 0xf && member ak (indexSmallArray a (fromIntegral z))
+member ak@(A k) (Node ok o m a)
   | z <- unsafeShiftR (xor k ok) o
   = z <= 0xf && let b = bit (fromIntegral z) in
-    m .&. b /= 0 && member k (indexSmallArray a (popCount (m .&. (b - 1))))
-member k (Tip ok _) = k == ok
+    m .&. b /= 0 && member ak (indexSmallArray a (popCount (m .&. (b - 1))))
+member (A k) (Tip ok _) = k == ok
 member _ Nil = False
 {-# inlineable member #-}
 
@@ -705,11 +769,11 @@ mapSmallArrayWithIndex f i = runST $ do
 {-# inline mapSmallArrayWithIndex #-}
 
 -- | Build a singleton Trie
-singleton :: Natural -> v -> Trie v
-singleton !k v = Tip k v
+singleton :: Atom -> v -> Trie v
+singleton !(A k) v = Tip k v
 {-# inline singleton #-}
 
-fromList :: [(Natural,v)] -> Trie v
+fromList :: [(Atom,v)] -> Trie v
 fromList xs = foldl' (\r (k,v) -> insert k v r) Nil xs
 {-# inline fromList #-}
 
@@ -717,7 +781,7 @@ empty :: Trie a
 empty = Nil
 {-# inline empty #-}
 
-type instance Index (Trie a) = Natural
+type instance Index (Trie a) = Atom
 type instance IxValue (Trie a) = a
 instance Ixed (Trie a)
 instance At (Trie a) where
@@ -726,15 +790,20 @@ instance At (Trie a) where
     Just a -> insert i a m
 
 {-
-newtype Atom = A Natural
 newtype Set = Set (Trie ())
 data Permutation = Permutation (Trie Natural) (Trie Natural)
-data Support where Supp :: Eq v => Trie v -> Support
+data Support where
+  Supp :: Eq v => Trie v -> Support
+
 data Predicate = Finite Set | Cofinite Set
+
 data Map a = Map Support (Trie a) -- memoized approximate support
 
-class Permutable t where perm :: Permutation -> t -> t
-class Permutable t => Nominal t where supp :: t -> Support
+class Permutable t where 
+  perm :: Permutation -> t -> t
+
+class Permutable t => Nominal t where
+  supp :: t -> Support
 
 instance Nominal Permutation where supp (Perm t _) = Supp t
 instance Nominal Support where supp = id

@@ -25,7 +25,7 @@ module Nominal.Internal.Set
 
 import Control.Lens
 import Data.Semigroup hiding (diff)
-import Nominal.Internal.Atom
+import Nominal.Internal.Trie (Atom(..))
 
 -- the int is the depth of the shallowest free variable
 -- when it is 0, this element is free. invariant:

@@ -12,4 +12,4 @@ module Nominal.Atom
 ( Atom
 ) where
 
-import Nominal.Internal.Atom
+import Nominal.Internal.Trie

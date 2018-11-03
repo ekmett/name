@@ -32,7 +32,11 @@ library
     containers,
     contravariant,
     fingertree,
+    ghc-prim,
     lens,
+    primitive,
+    integer-gmp,
+    semigroupoids,
     transformers        >= 0.5.5 && < 0.6,
     mtl                 >= 2.2.2 && < 2.3
 
@@ -41,23 +45,26 @@ library
   default-language: Haskell2010
 
   exposed-modules:
-    Nominal
-    Nominal.Atom
-    Nominal.Category
-    Nominal.Class
-    Nominal.Internal.Atom
-    Nominal.Internal.Map
-    Nominal.Internal.Logic
+    Nominal.Internal.Trie
     Nominal.Internal.Permutation
-    Nominal.Internal.Set
-    Nominal.Logic
-    Nominal.Map
+    Nominal.Atom
     Nominal.Permutation
-    Nominal.Set
-    Nominal.Supported
-    Nominal.Suspension
-    Nominal.Tie
 
+  if False
+    exposed-modules:
+      Nominal
+      Nominal.Category
+      Nominal.Class
+      Nominal.Internal.Map
+      Nominal.Internal.Logic
+      Nominal.Internal.Set
+      Nominal.Logic
+      Nominal.Map
+      Nominal.Set
+      Nominal.Supported
+      Nominal.Suspension
+      Nominal.Tie
+  
 library plugin
   if !flag(concat)
     buildable: False

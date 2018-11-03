@@ -21,7 +21,7 @@ import Control.Category ((>>>))
 import Control.Lens
 import Data.Functor.Compose
 import Nominal.Class
-import Nominal.Internal.Atom
+import Nominal.Internal.Trie (Atom(..))
 import Nominal.Internal.Set (Set(..))
 import Nominal.Set ((+>))
 import Numeric.Natural
