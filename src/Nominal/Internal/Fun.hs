@@ -12,7 +12,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Internal.Logic where
+module Nominal.Internal.Fun where
 
 import Data.Bits (Bits, FiniteBits)
 import qualified Data.Bits as Bits

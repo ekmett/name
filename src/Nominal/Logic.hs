@@ -25,7 +25,7 @@ import GHC.Generics
 import Nominal.Atom
 -- import Nominal.Class
 import Nominal.Lattice
-import Nominal.Internal.Logic
+import Nominal.Internal.Fun
 import Nominal.Set
 
 -- TODO: check my back of the envelope math
@@ -82,7 +82,6 @@ instance GBA Prop where
   xor (Cofinite p) (Cofinite q) = Finite  (xor p q)
   {-# inline xor #-}
 
-{-
 -- nominal
 instance SetLike Prop where
   member a (Finite s)   = member a s
@@ -100,7 +99,6 @@ instance SetLike Prop where
   delete a (Finite s)   = Finite (delete a s)
   delete a (Cofinite s) = Cofinite (insert a s)
   {-# inline delete #-}
--}
 
 instance BoundedMeet Prop where
   top = Cofinite bottom

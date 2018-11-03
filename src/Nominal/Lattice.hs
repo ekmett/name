@@ -28,6 +28,10 @@ import Data.Void
 
 infixr 5 ∨
 
+--------------------------------------------------------------------------------
+-- * Join Semilattices
+--------------------------------------------------------------------------------
+
 class Join a where
   (∨) :: a -> a -> a
   default (∨) :: Semigroup a => a -> a -> a
@@ -55,6 +59,10 @@ instance Join b => Join (a -> b) where
 instance Join a => Join (Maybe a) where
   (∨) = liftA2 (∨)
 
+--------------------------------------------------------------------------------
+-- * Bounded Join Semilattices
+--------------------------------------------------------------------------------
+
 class Join a => BoundedJoin a where
   bottom :: a
   default bottom :: Monoid a => a
@@ -80,6 +88,10 @@ instance BoundedJoin b => BoundedJoin (a -> b) where
 
 instance Join a => BoundedJoin (Maybe a) where
   bottom = Nothing
+
+--------------------------------------------------------------------------------
+-- * Meet Semilattices
+--------------------------------------------------------------------------------
 
 -- Meet semilattice. 
 -- @
@@ -116,6 +128,10 @@ instance Meet a => Meet (Maybe a) where
   x ∧ Nothing = x
   Just a ∧ Just b = Just (a ∧ b)
 
+--------------------------------------------------------------------------------
+-- * Bounded Meet Semilattices
+--------------------------------------------------------------------------------
+
 class Meet a => BoundedMeet a where
   top :: a
 
@@ -134,6 +150,10 @@ instance BoundedMeet b => BoundedMeet (a -> b) where
 instance BoundedMeet a => BoundedMeet (Maybe a) where
   top = Just top
 
+--------------------------------------------------------------------------------
+-- * Distributive Lattices
+--------------------------------------------------------------------------------
+
 infixr 7 ∧
 -- | Distributive lattice
 -- @
@@ -149,6 +169,10 @@ instance Ord a => Distributive (Set a)
 instance Distributive IntSet
 instance Distributive b => Distributive (a -> b)
 instance Distributive a => Distributive (Maybe a)
+
+--------------------------------------------------------------------------------
+-- * Generalized Boolean Algebras
+--------------------------------------------------------------------------------
 
 -- | A Generalized Boolean Algebra (Stone 1936)
 class (BoundedJoin a, Distributive a) => GBA a where
@@ -186,6 +210,10 @@ instance GBA b => GBA (a -> b) where
 
 -- instance GBA a => GBA (Maybe a) where -- kinda lame
 
+--------------------------------------------------------------------------------
+-- * Boolean algebras
+--------------------------------------------------------------------------------
+
 class (BoundedMeet a, GBA a) => Boolean a where
   neg :: a -> a
   neg p = implies p bottom
@@ -217,3 +245,34 @@ instance Boolean b => Boolean (a -> b) where
   neg f = \x -> neg (f x)
   implies f g = \x -> implies (f x) (g x)
   iff f g = \x -> iff (f x) (g x)
+
+--------------------------------------------------------------------------------
+-- * Partial orders
+--------------------------------------------------------------------------------
+
+-- | Note: this is deliberately disconnected from 'Ord' semantically to avoid
+-- @newtype@ clutter
+class PartialOrder t where
+  (⊆) :: t -> t -> Bool
+  default (⊆) :: Ord t => t -> t -> Bool
+  (⊆) = (<=)
+
+instance PartialOrder ()
+
+instance PartialOrder Void
+
+instance PartialOrder Bool
+
+instance (PartialOrder a, PartialOrder b) => PartialOrder (a, b) where
+  (a,b) ⊆ (c,d) = a ⊆ c && b ⊆ d
+
+instance (PartialOrder a, PartialOrder b) => PartialOrder (Either a b) where
+  Left a ⊆ Left b   = a ⊆ b
+  Right a ⊆ Right b = a ⊆ b
+  _ ⊆ _ = False
+
+instance Ord a => PartialOrder (Set a) where
+  (⊆) = Set.isSubsetOf
+
+instance PartialOrder IntSet where
+  (⊆) = IntSet.isSubsetOf

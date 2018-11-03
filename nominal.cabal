@@ -45,8 +45,8 @@ library
   default-language: Haskell2010
 
   exposed-modules:
+    Nominal.Internal.Fun
     Nominal.Internal.Trie
-    Nominal.Internal.Logic
     Nominal.Internal.Permutation
     Nominal.Atom
     Nominal.Lattice
