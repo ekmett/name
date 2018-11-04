@@ -317,7 +317,7 @@ unionWithKey f = go where
       okk = xor ok k
       wd  = unsafeShiftR okk n
       b   = bit (fromIntegral wd)
-      odm = popCount $ m .&. (b - 1) 
+      odm = popCount $ m .&. (b - 1)
   go nn@(Tip k _) on@(Full ok n as)
     | wd > 0xf = fork (level okk) k nn ok on
     | !oz <- indexSmallArray as d, !z <- go nn oz, ptrNeq z oz = Full ok n (update16 d z as)
@@ -335,7 +335,7 @@ unionWithKey f = go where
       okk = xor ok k
       wd  = unsafeShiftR okk n
       b   = bit (fromIntegral wd)
-      odm = popCount $ m .&. (b - 1) 
+      odm = popCount $ m .&. (b - 1)
   go on@(Full ok n as) nn@(Tip k _)
     | wd > 0xf = fork (level okk) k nn ok on
     | !oz <- indexSmallArray as d, !z <- go oz nn, ptrNeq z oz = Full ok n (update16 d z as)
@@ -346,41 +346,85 @@ unionWithKey f = go where
       d   = fromIntegral wd
   go l@(Full lk ln la) r@(Full rk rn ra)
     | wd > 0xf  = fork (level okk) lk l rk r
+    | ln > rn = let zd = indexSmallArray la (fromIntegral wd)
+                    z = go zd r
+                in if ptrEq z zd then l
+                                 else Full lk ln $ updateSmallArray (fromIntegral wd) z la
+    | ln < rn = let zd = indexSmallArray ra (fromIntegral wd)
+                    z = go l zd
+                in if ptrEq z zd then r
+                                 else Full rk rn $ updateSmallArray (fromIntegral wd) z ra
     | !ua <- mzipWith go la ra = maybe (Full lk ln ua) (const l) $ for 0 16 $ \i -> do
       x <- indexSmallArrayM la i
       y <- indexSmallArrayM ua i
       guard $ ptrEq x y
     where
       okk = xor lk rk
-      wd = unsafeShiftR okk (min ln rn)
+      wd = unsafeShiftR okk (max ln rn)
   go l@(Full lk ln la) r@(Node rk rn rm ra)
     | wd > 0xf = fork (level okk) lk l rk r
+    | ln > rn = let zd = indexSmallArray la (fromIntegral wd)
+                    z = go zd r
+                in if ptrEq z zd then l
+                                 else Full lk ln $ updateSmallArray (fromIntegral wd) z la
+    | ln < rn = if rm .&. bd /= 0
+        then let zd = indexSmallArray ra rdm
+                 z = go l zd
+             in if ptrEq z zd then r
+                              else Node rk rn rm $ updateSmallArray rdm z ra
+        else node rk rn (rm .|. bd) (insertSmallArray rdm l ra)
     | !ua <- mapSmallArrayWithIndex tweak la = maybe (Full lk ln ua) (const l) $ for 0 16 $ \i -> do
       x <- indexSmallArrayM la i
       y <- indexSmallArrayM ua i
       guard $ ptrEq x y
     where
       okk = xor lk rk
-      wd = unsafeShiftR okk (min ln rn)
+      wd = unsafeShiftR okk (max ln rn)
+      bd = bit (fromIntegral wd)
+      rdm = popCount $ rm .&. (bd - 1)
       tweak d lx 
         | rm .&. b == 0 = lx -- missing on right
         | otherwise = go lx $ indexSmallArray ra $ popCount $ rm .&. (b - 1)
         where b = bit d
   go l@(Node lk ln lm la) r@(Full rk rn ra) 
     | wd > 0xf = fork (level okk) lk l rk r
+    | ln > rn = if lm .&. bd /= 0
+        then let zd = indexSmallArray la ldm
+                 z = go zd r
+             in if ptrEq z zd then l
+                              else Node lk ln lm $ updateSmallArray ldm z la
+        else node lk ln (lm .|. bd) (insertSmallArray ldm r la)
+    | ln < rn = let zd = indexSmallArray ra (fromIntegral wd)
+                    z = go l zd
+                in if ptrEq z zd then r
+                                 else Full rk rn $ updateSmallArray (fromIntegral wd) z ra
     | !ua <- mapSmallArrayWithIndex tweak ra = maybe (Full rk rn ua) (const r) $ for 0 16 $ \i -> do
        x <- indexSmallArrayM la i
        y <- indexSmallArrayM ua i
        guard $ ptrEq x y
     where
        okk = xor lk rk
-       wd = unsafeShiftR okk (min ln rn)
+       wd = unsafeShiftR okk (max ln rn)
+       bd = bit (fromIntegral wd)
+       ldm = popCount $ lm .&. (bd - 1)
        tweak d rx 
          | lm .&. b == 0 = rx -- missing on right
          | otherwise = go (indexSmallArray la $ popCount $ lm .&. (b-1)) rx
          where b = bit d
-  go l@(Node lk ln lm la) r@(Node rk rn rm ra) 
+  go l@(Node lk ln lm la) r@(Node rk rn rm ra)
     | wd > 0xf = fork (level okk) lk l rk r
+    | ln > rn = if lm .&. bd /= 0
+        then let zd = indexSmallArray la ldm
+                 z = go zd r
+             in if ptrEq z zd then l
+                              else Node lk ln lm $ updateSmallArray ldm z la
+        else node lk ln (lm .|. bd) (insertSmallArray ldm r la)
+    | ln < rn = if rm .&. bd /= 0
+        then let zd = indexSmallArray ra rdm
+                 z = go l zd
+             in if ptrEq z zd then r
+                              else Node rk rn rm $ updateSmallArray rdm z ra
+        else node rk rn (rm .|. bd) (insertSmallArray rdm l ra)
     | otherwise = runST $ do -- TODO: check sharing while we go
         let um = lm .|. rm
         uma <- newSmallArray (popCount um) undefined
@@ -405,8 +449,11 @@ unionWithKey f = go where
           else node lk ln um <$> unsafeFreezeSmallArray uma
     where
        okk = xor lk rk
-       wd = unsafeShiftR okk (min ln rn)
-        
+       wd = unsafeShiftR okk (max ln rn)
+       bd = bit (fromIntegral wd)
+       ldm = popCount $ lm .&. (bd - 1)
+       rdm = popCount $ rm .&. (bd - 1)
+
 union :: Trie a -> Trie a -> Trie a
 union = unionWith const
 {-# inline union #-}
@@ -430,13 +477,14 @@ intersectionWithKey f = go where
     Nothing -> Nil
     Just lv -> Tip rk (f (A rk) lv rv)
   go l@(Node lk ln lm la) r@(Node rk rn rm ra)
-    | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
-      LT | rb .&. rm == 0 -> Nil
-      LT -> go l $ indexSmallArray ra $ popCount $ rm .&. (rb-1) -- lookup
-      GT | lb .&. lm == 0 -> Nil -- contained, but disjoint
-      GT -> go (indexSmallArray la $ popCount $ lm .&. (lb-1)) r -- lookup
-      EQ -> runST $ do -- same level, merge
+    | wd > 0xf = Nil -- disjoint
+    | ln > rn = if lm .&. bd /= 0
+        then go (indexSmallArray la ldm) r
+        else Nil
+    | ln < rn = if rm .&. bd /= 0
+        then go l (indexSmallArray ra rdm)
+        else Nil
+    | otherwise = runST $ do -- same level, merge
         let cm0 = lm .&. rm
         cma <- newSmallArray (popCount cm0) undefined
         let loop 0 !i !um = small lk ln um <$> if um == cm0
@@ -452,15 +500,17 @@ intersectionWithKey f = go where
         loop cm0 0 0
     where
       okk = xor lk rk
-      rb = bit (fromIntegral (unsafeShiftR okk rn))
-      lb = bit (fromIntegral (unsafeShiftR okk ln))
+      wd = unsafeShiftR okk (max ln rn)
+      bd = bit (fromIntegral wd)
+      ldm = popCount $ lm .&. (bd - 1)
+      rdm = popCount $ rm .&. (bd - 1)
   go l@(Full lk ln la) r@(Node rk rn rm ra)
-    | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
-      LT | rb .&. rm == 0 -> Nil
-      LT -> go l $ indexSmallArray ra $ popCount $ rm .&. (rb-1)
-      GT -> go (indexSmallArray la ld) r
-      EQ -> runST $ do -- same level, merge
+    | wd > 0xf = Nil -- disjoint
+    | ln > rn = go (indexSmallArray la (fromIntegral wd)) r
+    | ln < rn = if rm .&. bd /= 0
+        then go l (indexSmallArray ra rdm)
+        else Nil
+    | otherwise = runST $ do -- same level, merge
         cma <- newSmallArray (length ra) undefined
         let loop 0 !i !um = small lk ln um <$> if um == rm
               then unsafeFreezeSmallArray cma -- all elements made it through
@@ -476,15 +526,16 @@ intersectionWithKey f = go where
         loop rm 0 0
     where
       okk = xor lk rk
-      rb = bit (fromIntegral (unsafeShiftR okk rn))
-      ld = fromIntegral (unsafeShiftR okk ln)
+      wd = unsafeShiftR okk (max ln rn)
+      bd = bit (fromIntegral wd)
+      rdm = popCount $ rm .&. (bd - 1)
   go l@(Node lk ln lm la) r@(Full rk rn ra)
-    | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
-      LT -> go l (indexSmallArray ra rd)
-      GT | lb .&. lm == 0 -> Nil -- contained, but disjoint
-      GT -> go (indexSmallArray la $ popCount $ lm .&. (lb-1)) r -- lookup
-      EQ -> runST $ do -- same level, merge
+    | wd > 0xf = Nil -- disjoint
+    | ln > rn = if lm .&. bd /= 0
+        then go (indexSmallArray la ldm) r
+        else Nil
+    | ln < rn = go l (indexSmallArray ra (fromIntegral wd))
+    | otherwise = runST $ do -- same level, merge
         cma <- newSmallArray (length la) undefined
         let loop 0 !i !um = small lk ln um <$> if um == lm
               then unsafeFreezeSmallArray cma -- all elements made it through
@@ -500,14 +551,14 @@ intersectionWithKey f = go where
         loop lm 0 0
     where
       okk = xor lk rk
-      rd = fromIntegral (unsafeShiftR okk rn)
-      lb = bit (fromIntegral (unsafeShiftR okk ln))
+      wd = unsafeShiftR okk (max ln rn)
+      bd = bit (fromIntegral wd)
+      ldm = popCount $ lm .&. (bd - 1)
   go l@(Full lk ln la) r@(Full rk rn ra)
-    | unsafeShiftR okk (min ln rn) > 0xf = Nil -- disjoint
-    | otherwise = case compare ln rn of 
-      LT -> go l (indexSmallArray ra rd)
-      GT -> go (indexSmallArray la ld) r
-      EQ -> runST $ do
+    | wd > 0xf = Nil -- disjoint
+    | ln > rn = go (indexSmallArray la (fromIntegral wd)) r
+    | ln < rn = go l (indexSmallArray ra (fromIntegral wd))
+    | otherwise = runST $ do
         cma <- newSmallArray 16 undefined
         let loop 16 !i !um = small lk ln um <$> if um == 16
               then unsafeFreezeSmallArray cma
@@ -520,7 +571,9 @@ intersectionWithKey f = go where
                 Nil -> loop (d+1) i um
                 ux  -> writeSmallArray cma i ux >> loop (d+1) (i+1) (um .|. b)
         loop 0 0 0
-    where okk = xor lk rk; rd = fromIntegral (unsafeShiftR okk rn); ld = fromIntegral (unsafeShiftR okk ln)
+    where
+      okk = xor lk rk
+      wd = unsafeShiftR okk (max ln rn)
 {-# inlineable intersectionWith #-}
 
 filterMap :: (a -> Maybe b) -> Trie a -> Trie b
