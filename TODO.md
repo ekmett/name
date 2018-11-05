@@ -86,3 +86,5 @@ TODO
  [gcbp]: http://ozark.hendrix.edu/~yorgey/pub/GCBP-author-version.pdf
  [feldman]: https://ac.els-cdn.com/S0001870885710341/1-s2.0-S0001870885710341-main.pdf?_tid=27d48096-73cd-4665-8425-c02a2e63e293&acdnat=1540800784_a266b1acb18d61c7eef44ca3deb7232c
  [orbits]: http://schmidt.nuigalway.ie/goetz/talk/semigp06.pdf
+
+* Add harness, like the (non-generic) one from "A Haskell Nominal Toolkit" https://perso.crans.org/calves/hnt/ http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.706.2844&rep=rep1&type=pdf
