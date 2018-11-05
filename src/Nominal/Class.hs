@@ -75,24 +75,20 @@ instance Permutable a => Permutable (Trie a) where
     tweak i j s = s & at j .~ z^.at i
     z = perm p0 <$> t
 
-instance Permutable Prop
-
-instance Permutable Void
-
-instance Permutable ()
-
-instance (Permutable a, Permutable b) => Permutable (a, b)
-
-instance (Permutable a, Permutable b) => Permutable (Either a b)
-
-instance Permutable a => Permutable [a]
-
-instance Permutable a => Permutable (Maybe a)
-
-instance Permutable (Proxy a)
-
 instance (Permutable a, Permutable b) => Permutable (a -> b) where
   perm p f = perm p . f . perm (inv p)
+
+instance Permutable Prop
+instance (Permutable a, Permutable b) => Permutable (a, b)
+instance (Permutable a, Permutable b) => Permutable (Either a b)
+instance Permutable a => Permutable [a]
+instance Permutable a => Permutable (Maybe a)
+instance Permutable (Proxy a)
+instance Permutable Void
+instance Permutable ()
+instance Permutable Bool
+instance Permutable Int where perm _ = id
+instance Permutable Word where perm _ = id
 
 --------------------------------------------------------------------------------
 -- * Permutable1
@@ -154,28 +150,25 @@ fresh (supp -> Supp s) = maybe (A 0) (1+) $ sup s
 instance Nominal Permutation where
   supp (Permutation (Tree t) _) = Supp t
 
-instance Nominal a => Nominal [a]
-
-instance Nominal a => Nominal (Maybe a)
-
 instance Nominal Support where
   supp = id
 
-instance Nominal (Proxy a)
-
 instance Nominal Atom where
   supp a = Supp (Trie.singleton a ())
-
-instance Nominal Void
-
-instance Nominal ()
 
 instance Nominal Set where
   supp (Set s) = Supp s
 
 instance (Nominal a, Nominal b) => Nominal (a, b)
-
 instance (Nominal a, Nominal b) => Nominal (Either a b)
+instance Nominal a => Nominal [a]
+instance Nominal a => Nominal (Maybe a)
+instance Nominal (Proxy a)
+instance Nominal Void
+instance Nominal ()
+instance Nominal Bool
+instance Nominal Int where supp _ = mempty
+instance Nominal Word where supp _ = mempty
 
 -- (#) :: (Nominal a, Nominal b) => a -> b -> Bool
 -- a # b = supp a `disjoint` supp b

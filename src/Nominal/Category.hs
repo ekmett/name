@@ -57,8 +57,8 @@ runNom :: Nom a b -> a -> b
 runNom (Nom _ f) = f
 
 -- unsafe
-nom_ :: (a -> b) -> Nom a b
-nom_ = Nom mempty
+nom_ :: N k => (a -> b) -> k a b
+nom_ = nom mempty
 
 class Category k => MonoidalP k where
   (***)   :: k a b -> k c d -> k (a,c) (b,d)
@@ -312,17 +312,22 @@ class (CCC k, Cocartesian k) => N k where
   -- requires type applications
   con :: proxy k -> (k ~ (->) => r) -> r -> r
 
+  -- internal workhorse, unsafe
+  nar :: ((a->b)->(c->d)) -> k a b -> k c d
+
 instance N (->) where
   nom _ = id
   {-# inline nom #-}
   con _ x _ = x
   {-# inline con #-}
+  nar = id
 
 instance N Nom where
   nom = Nom
   {-# inline conlike nom #-}
   con _ _ x = x
   {-# inline con #-}
+  nar k (Nom s f) = Nom s (k f)
 
 -- Nom is not a tensored category over Hask, so we don't get copowers in general, merely finite ones
 
