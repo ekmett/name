@@ -34,7 +34,6 @@ import Prelude
   , Monoid(..), Semigroup(..)
   )
 
-type (*) = (,)
 type (+) = Either
 
 data Nom a b = Nom Support (a -> b)
@@ -62,16 +61,16 @@ nom_ :: (a -> b) -> Nom a b
 nom_ = Nom mempty
 
 class Category k => MonoidalP k where
-  (***)   :: k a b -> k c d -> k (a*c) (b*d)
-  first   :: k a b -> k (a*c) (b*c)
-  second  :: k c d -> k (a*c) (a*d)
-  swapP   :: k (a*b) (b*a)
-  lassocP :: k (a*(b*c)) ((a*b)*c)
-  rassocP :: k ((a*b)*c) (a*(b*c))
-  lunit   :: k a (()*a)
-  lcounit :: k (()*a) a
-  runit   :: k a (a*())
-  rcounit :: k (a*()) a
+  (***)   :: k a b -> k c d -> k (a,c) (b,d)
+  first   :: k a b -> k (a,c) (b,c)
+  second  :: k c d -> k (a,c) (a,d)
+  swapP   :: k (a,b) (b,a)
+  lassocP :: k (a,(b,c)) ((a,b),c)
+  rassocP :: k ((a,b),c) (a,(b,c))
+  lunit   :: k a ((),a)
+  lcounit :: k ((),a) a
+  runit   :: k a (a,())
+  rcounit :: k (a,()) a
   it      :: k a ()
 
 instance MonoidalP (->) where
@@ -123,11 +122,11 @@ instance MonoidalP Nom where
   {-# inline it #-}
 
 class MonoidalP k => Cartesian k where
-  exl :: k (a*b) a
-  exr :: k (a*b) b
-  dup :: k a (a*a)
+  exl :: k (a,b) a
+  exr :: k (a,b) b
+  dup :: k a (a,a)
 
-(&&&) :: Cartesian k => k a b -> k a c -> k a (b*c)
+(&&&) :: Cartesian k => k a b -> k a c -> k a (b,c)
 f &&& g = (f *** g) . dup
 {-# inline (&&&) #-}
 
@@ -220,11 +219,11 @@ class MonoidalS k => Cocartesian k where
 (|||) :: Cocartesian k => k a c -> k b c -> k (Either a b) c
 f ||| g = jam . (f +++ g)
 
-factorr :: (Cartesian k, Cocartesian k) => k ((u*b)+(v*b)) ((u+v)*b)
+factorr :: (Cartesian k, Cocartesian k) => k ((u,b)+(v,b)) ((u+v),b)
 factorr = first inl ||| first inr
 {-# inline factorr #-}
 
-factorl :: (Cartesian k, Cocartesian k) => k ((a*b)+(a*c)) (a*(b+c))
+factorl :: (Cartesian k, Cocartesian k) => k ((a,b)+(a,c)) (a,(b+c))
 factorl = second inl ||| second inr
 {-# inline factorl #-}
 
@@ -245,8 +244,8 @@ instance Cocartesian Nom where
   {-# inline jam #-}
 
 class (Cartesian k, Cocartesian k) => Distributive k where
-  distr :: k ((u+v)*b) ((u*b)+(v*b))
-  distl :: k (a*(u+v)) ((a*u)+(a*v))
+  distr :: k ((u+v),b) ((u,b)+(v,b))
+  distl :: k (a,(u+v)) ((a,u)+(a,v))
 
 instance Distributive (->) where
   distr (Left u,b) = Left (u,b)
@@ -263,8 +262,8 @@ instance Distributive Nom where
   {-# inline distl #-}
 
 class Cartesian k => CCC k where
-  apply     :: k (k a b * a) b
-  uncurry   :: k a (k b c) -> k (a*b) c
+  apply     :: k (k a b , a) b
+  uncurry   :: k a (k b c) -> k (a,b) c
 
   -- pragmatically limit "Ob" constraints to just things we're going to pass into the environment
   -- pushing them here makes GHC do all the work, at the expense of making all the previous statements
@@ -274,7 +273,7 @@ class Cartesian k => CCC k where
   -- that respects parametricity, but which has restrictions on what can be put into the environment.
 
   type Ob k :: * -> Constraint
-  curry     :: Ob k a => k (a*b) c -> k a (k b c)
+  curry     :: Ob k a => k (a,b) c -> k a (k b c)
   const     :: Ob k a => k a (k b a)
   unitArrow :: Ob k a => k a (k () a)
 
