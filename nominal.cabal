@@ -57,6 +57,7 @@ library
     Nominal.Logic
     Nominal.Map
     Nominal.Permutation
+    Nominal.Restriction
     Nominal.Set
     Nominal.Support
     Nominal.Supported
