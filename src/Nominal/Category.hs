@@ -23,6 +23,7 @@ import Control.Applicative (Applicative(..), Alternative(..))
 import qualified Control.Arrow as Arrow
 import Control.Category
 import GHC.Exts
+import Data.Kind
 import Data.Void
 import Nominal.Class
 import Nominal.Support
@@ -272,7 +273,7 @@ class Cartesian k => CCC k where
   -- to restrict to some sub-category to handle currying, etc. The classes here capture any category
   -- that respects parametricity, but which has restrictions on what can be put into the environment.
 
-  type Ob k :: * -> Constraint
+  type Ob k :: Type -> Constraint
   curry     :: Ob k a => k (a,b) c -> k a (k b c)
   const     :: Ob k a => k a (k b a)
   unitArrow :: Ob k a => k a (k () a)
