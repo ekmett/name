@@ -37,7 +37,7 @@ instance Meet Fun where
 instance BoundedMeet Fun where
   top = TAlways
 
-instance Distributive Fun
+instance DistributiveLattice Fun
 
 instance GBA Fun where
   p \\ q = p ∧ neg q

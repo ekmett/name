@@ -102,8 +102,6 @@ instance Meet Support where
   Supp xs ∧ Supp ys = Supp $ canonical $ Supp $
     imerge (\_ x y -> Just $ These x y) (fmap This) (fmap That) xs ys
 
-instance Distributive Support
-
 (↑) :: Support -> Set -> Support
 x ↑ y = x ∨ set y
 

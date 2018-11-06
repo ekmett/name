@@ -159,23 +159,23 @@ infixr 7 ∧
 -- @
 -- x ∧ (y ∨ z) = (x ∧ y) ∨ (x ∧ z).
 -- @
-class (Join a, Meet a) => Distributive a
+class (Join a, Meet a) => DistributiveLattice a
 
-instance Distributive Void
-instance Distributive ()
-instance Distributive Bool
-instance (Distributive a, Distributive b) => Distributive (a, b)
-instance Ord a => Distributive (Set a)
-instance Distributive IntSet
-instance Distributive b => Distributive (a -> b)
-instance Distributive a => Distributive (Maybe a)
+instance DistributiveLattice Void
+instance DistributiveLattice ()
+instance DistributiveLattice Bool
+instance (DistributiveLattice a, DistributiveLattice b) => DistributiveLattice (a, b)
+instance Ord a => DistributiveLattice (Set a)
+instance DistributiveLattice IntSet
+instance DistributiveLattice b => DistributiveLattice (a -> b)
+instance DistributiveLattice a => DistributiveLattice (Maybe a)
 
 --------------------------------------------------------------------------------
 -- * Generalized Boolean Algebras
 --------------------------------------------------------------------------------
 
 -- | A Generalized Boolean Algebra (Stone 1936)
-class (BoundedJoin a, Distributive a) => GBA a where
+class (BoundedJoin a, DistributiveLattice a) => GBA a where
   (\\) :: a -> a -> a
   p \\ q = p ∧ xor p q
   {-# inline (\\) #-}

@@ -64,7 +64,7 @@ instance Meet Prop where
   -- (S-p)(S-q)=S(S-q)-p(S-q)=SS-Sq-pS-pq=S-q-p-pq=S-q-p=S-(q+p)
   {-# inline (∧) #-}
 
-instance Distributive Prop
+instance DistributiveLattice Prop
 
 instance GBA Prop where
   -- nominal

@@ -45,7 +45,7 @@ instance BoundedJoin Set
 instance Meet Set where
   Set m ∧ Set n = Set (Trie.intersection m n)
 
-instance Distributive Set
+instance DistributiveLattice Set
 
 instance GBA Set where
   Set m \\ Set n = Set (Trie.diff m n)

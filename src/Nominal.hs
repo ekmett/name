@@ -10,12 +10,12 @@
 
 module Nominal
   ( module Nominal.Atom
+  , module Nominal.Category
   , module Nominal.Class
   , module Nominal.Lattice
   , module Nominal.Logic
   -- , module Nominal.Map -- designed for qualified import
   , module Nominal.Permutation
-  , module Nominal.Restriction
   , module Nominal.Set
   , module Nominal.Support
   , module Nominal.Supported
@@ -25,12 +25,12 @@ module Nominal
   ) where
 
 import Nominal.Atom
+import Nominal.Category
 import Nominal.Class
 import Nominal.Lattice
 import Nominal.Logic
 import Nominal.Map
 import Nominal.Permutation
-import Nominal.Restriction
 import Nominal.Set
 import Nominal.Support
 import Nominal.Supported

@@ -364,11 +364,11 @@ instance Cocartesian Nom where
   ti = nom_ absurd
   {-# inline ti #-}
 
-class (MonoidalP k, MonoidalS k) => Distributive k where
+class (MonoidalP k, MonoidalS k) => DistributiveCategory k where
   distr :: k ((u+v),b) ((u,b)+(v,b))
   distl :: k (a,(u+v)) ((a,u)+(a,v))
 
-class (MonoidalP k, MonoidalS k) => OpDistributive k where
+class (MonoidalP k, MonoidalS k) => OpDistributiveCategory k where
   factorl :: k ((a,b)+(a,c)) (a,(b+c))
   default factorl :: (Cartesian k, Cocartesian k) => k ((a,b)+(a,c)) (a,(b+c))
   factorl = second inl ||| second inr
@@ -379,10 +379,10 @@ class (MonoidalP k, MonoidalS k) => OpDistributive k where
   factorr = first inl ||| first inr
   {-# inline factorr #-}
 
-instance OpDistributive (->)
-instance OpDistributive Nom
+instance OpDistributiveCategory (->)
+instance OpDistributiveCategory Nom
 
-instance Distributive (->) where
+instance DistributiveCategory (->) where
   distr (Left u,b) = Left (u,b)
   distr (Right v,b) = Right (v,b)
   {-# inline distr #-}
@@ -390,31 +390,31 @@ instance Distributive (->) where
   distl (a,Right v) = Right (a,v)
   {-# inline distl #-}
 
-instance Distributive Nom where
+instance DistributiveCategory Nom where
   distr = nom_ distr
   {-# inline distr #-}
   distl = nom_ distl
   {-# inline distl #-}
 
-instance OpDistributive k => Distributive (Op k) where
+instance OpDistributiveCategory k => DistributiveCategory (Op k) where
   distr = Op factorr
   {-# inline distr #-}
   distl = Op factorl
   {-# inline distl #-}
 
-instance Distributive k => OpDistributive (Op k) where
+instance DistributiveCategory k => OpDistributiveCategory (Op k) where
   factorr = Op distr
   {-# inline factorr #-}
   factorl = Op distl
   {-# inline factorl#-}
 
-instance (Distributive k, OpDistributive k) => Distributive (Core k) where
+instance (DistributiveCategory k, OpDistributiveCategory k) => DistributiveCategory (Core k) where
   distr = Core distr factorr
   {-# inline distr #-}
   distl = Core distl factorl
   {-# inline distl #-}
 
-instance (Distributive k, OpDistributive k) => OpDistributive (Core k) where
+instance (DistributiveCategory k, OpDistributiveCategory k) => OpDistributiveCategory (Core k) where
   factorr = Core factorr distr
   {-# inline factorr #-}
   factorl = Core factorl distl
@@ -460,7 +460,7 @@ instance CCC Nom where
 niso_ :: NI k => (a -> b) -> (b -> a) -> k a b
 niso_ = niso mempty
 
-class (Distributive k, OpDistributive k) => NI k where
+class (DistributiveCategory k, OpDistributiveCategory k) => NI k where
   niso :: Support -> (a -> b) -> (b -> a) -> k a b
 
 instance NI (->) where
