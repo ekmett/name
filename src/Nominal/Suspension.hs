@@ -34,6 +34,8 @@ instance Permutable (Suspended a) where
 instance Nominal a => Nominal (Suspended a) where
   a # Suspended q b = perm (inv q) a # b
   supp (Suspended q a) = perm q (supp a)
+  fresh (Suspended q b) = perm q (fresh b)
+  equiv (Suspended q b) i j = equiv b (perm p i) (perm p j) where p = inv q -- can we simplify?
 
 instance NominalSemigroup a => Semigroup (Suspended a) where
   Suspended p a <> Suspended q b = Suspended (p <> q) (a <> perm p b)

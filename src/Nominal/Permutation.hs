@@ -37,6 +37,7 @@ swap :: Atom -> Atom -> Permutation
 swap i j
   | i /= j = join Permutation $ Tree $ insert i j $ insert j i Empty
   | otherwise = mempty
+{-# inline [0] swap #-}
 
 -- | This is not quite natural order, as its easiest for me to find the largest element and work backwards.
 -- for natural order, reverse the list of cycles. Not a nominal arrow
@@ -61,16 +62,16 @@ rcycles (Permutation t0 _) = go t0 where
     (Nothing, t') -> (Tree t', [e])
 -}
 
--- | standard cyclic representation of a permutation, broken into parts. Not nominal
+-- | standard cyclic representation of a permutation, broken into parts. Not equivariant
 cycles :: Permutation -> [[Atom]]
 cycles = reverse . rcycles
 
--- | standard cyclic representation of a permutation, smashed flat. Not nominal
+-- | standard cyclic representation of a permutation, smashed flat. Not equivariant
 cyclic :: Permutation -> [Atom]
 cyclic = concat . cycles
 
 -- | If the conjugacy class of two permutations is the same then there is a permutation that
--- can be used to conjugate one to get the other.
+-- can be used to conjugate one to get the other. equivariant
 --
 -- @
 -- 'conjugacyClass' x ≡ 'conjugacyClass' y => ∃z, y = z <> x <> inv z
@@ -79,7 +80,7 @@ cyclic = concat . cycles
 conjugacyClass :: Permutation -> [Int]
 conjugacyClass = sort . map length . rcycles
 
--- | reassemble takes a standard cyclic representation smashed flat and reassembles the cycles
+-- | reassemble takes a standard cyclic representation smashed flat and reassembles the cycles, not equivariant
 --
 -- @
 -- 'reassemble' . 'cyclic' = 'cycles'
@@ -90,13 +91,13 @@ conjugacyClass = sort . map length . rcycles
 reassemble :: [Atom] -> [[Atom]]
 reassemble = groupBy (\(A x) (A y) -> x > y)
 
--- |
+-- | equivariant
 -- @
 -- 'perm' p 'parity' q = perm p ('parity' p ('perm' (inv p) q)) = 'parity' q
 -- @
 parity :: Permutation -> Bool
 parity = foldr (xor . foldr (const not) True) True . rcycles
 
--- | Determinant of the permutation matrix, nominal
+-- | Determinant of the permutation matrix, equivariant
 sign :: Permutation -> Int
 sign g = (-1) ^ fromEnum (parity g)

@@ -41,16 +41,26 @@ instance (Eq a, Nominal a) => Eq (Tie a) where
 
 instance Permutable a => Permutable (Tie a) where
   trans i j (Tie a b) = Tie (trans i j a) (trans i j b)
+  {-# inline trans #-}
   perm s (Tie a b) = Tie (perm s a) (perm s b)
+  {-# inline perm #-}
 
 instance Permutable1 Tie where
   perm1 f s (Tie a b) = Tie (perm s a) (f s b)
+  {-# inline perm1 #-}
   trans1 f i j (Tie a b) = Tie (trans i j a) (f i j b)
+  {-# inline trans1 #-}
 
 instance Nominal a => Nominal (Tie a) where
   a # Tie b x = a == b || a # x
+  {-# inline (#) #-}
+  equiv = equiv . supp
+  {-# inline equiv #-}
+  fresh (Tie a _) = a
+  {-# inline fresh #-}
   supp (Tie a b) = case supp b of
     Supp xs -> Supp $ xs & at a .~ Nothing -- merge that element into U
+  {-# inline supp #-}
 
 instance Nominal1 Tie where
   supp1 f (Tie a b) = case f b of

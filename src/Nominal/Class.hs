@@ -20,17 +20,18 @@
 module Nominal.Class
 ( Permutable(..)
 , Permutable1(..)
-, Nominal(..), equiv, fresh
+, Nominal(..)
 , Nominal1(..)
 -- , (#), support
 , NominalSemigroup
 , NominalMonoid
 -- * Generics
-, GPermutable
+, GPermutable, transgen, permgen
 , GPermutable1
 ) where
 
 import Control.Lens hiding (to, from, (#))
+import qualified Data.Map.Internal as Map
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Generic
 import Data.Proxy
@@ -49,10 +50,26 @@ import Prelude hiding (elem)
 -- * Permutable
 --------------------------------------------------------------------------------
 
+transgen :: (Generic s, GPermutable (Rep s)) => Atom -> Atom -> s -> s
+transgen i j = to . gtrans i j . from
+{-# inline [0] transgen #-}
+
+permgen :: (Generic s, GPermutable (Rep s)) => Permutation -> s -> s
+permgen p = to . gperm p . from
+{-# inline [0] permgen #-}
+
+{-# RULES
+"transgen/transgen/ijij" [~1] forall i j x. transgen i j (transgen i j x) = x
+"transgen/transgen/ijji" [~1] forall i j x. transgen i j (transgen j i x) = x
+"permgen/swap=transgen" [~1] forall i j. permgen (swap i j) = transgen i j
+"permgen/mempty=id" [~1] forall x. permgen (Permutation (Tree (Trie Map.Tip)) x) = id
+  #-}
+
 class Permutable s where
   trans :: Atom -> Atom -> s -> s
   default trans :: (Generic s, GPermutable (Rep s)) => Atom -> Atom -> s -> s
-  trans a b = to . gtrans a b . from
+  trans = transgen
+  {-# inline trans #-}
 
   -- |
   -- @
@@ -61,46 +78,57 @@ class Permutable s where
   -- @
   perm :: Permutation -> s -> s
   default perm :: (Generic s, GPermutable (Rep s)) => Permutation -> s -> s
-  perm p = to . gperm p . from
+  perm = permgen
+  {-# inline perm #-}
 
 instance Permutable Atom where
   trans a b c
     | c == a = b
     | c == b = a
     | otherwise = c
+  {-# inline trans #-}
   perm (Permutation t _) i = permTree t i
+  {-# inline perm #-}
 
 instance Permutable Permutation where
-  trans a b = perm (swap a b)
+  trans a b t = swap a b <> t <> swap a b
+  {-# inline trans #-}
   perm p t = p <> t <> inv p
+  {-# inline perm #-}
 
 instance Permutable Set where
   trans i j s = s
     & contains j .~ s^.contains i
-    & contains i .~ s^.contains j 
+    & contains i .~ s^.contains j
+  {-# inline trans #-}
   perm (Permutation (Tree p) _) z = ifoldr tweak z p where
     tweak i j s = s & contains j .~ z^.contains i -- can't use trans, note s /= z
+  {-# inline perm #-}
 
 instance Permutable Support where
   trans i j (Supp s) = Supp $ s
     & at j .~ s^.at i
     & at i .~ s^.at j
+  {-# inline trans #-}
   perm (Permutation (Tree p) _) (Supp z) = Supp $ ifoldr tweak z p where
     tweak i j s = s & at j .~ z^.at i
+  {-# inline perm #-}
 
 instance Permutable a => Permutable (Trie a) where
-  trans i j s
-    | i == j    = s
-    | otherwise = s
+  trans i j s = s
     & at j .~ s^.at i
     & at i .~ s^.at j
+  {-# inline trans #-}
   perm p0@(Permutation (Tree p) _) t = ifoldr tweak z p where
     tweak i j s = s & at j .~ z^.at i
     z = perm p0 <$> t
+  {-# inline perm #-}
 
 instance (Permutable a, Permutable b) => Permutable (a -> b) where
   trans a b f = trans a b . f . trans a b
+  {-# inline trans #-}
   perm p f = perm p . f . perm (inv p)
+  {-# inline perm #-}
 
 instance Permutable Prop
 instance (Permutable a, Permutable b) => Permutable (a, b)
@@ -115,23 +143,44 @@ instance Permutable ()
 instance Permutable Bool
 instance Permutable Int where
   trans _ _ = id
+  {-# inline trans #-}
   perm _ = id
+  {-# inline perm #-}
 instance Permutable Word where
   trans _ _ = id
+  {-# inline trans #-}
   perm _ = id
+  {-# inline perm #-}
 
 --------------------------------------------------------------------------------
 -- * Permutable1
 --------------------------------------------------------------------------------
 
+transgen1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Atom -> Atom -> s -> s) -> Atom -> Atom -> f s -> f s
+transgen1 f a b = to1 . gtrans1 f a b . from1
+{-# inline [0] transgen1 #-}
+
+permgen1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Permutation -> s -> s) -> Permutation -> f s -> f s
+permgen1 f p = to1 . gperm1 f p . from1
+{-# inline [0] permgen1 #-}
+
+{-# RULES
+"transgen1/transgen1/ijij" [~1] forall f i j x. transgen1 f i j (transgen1 f i j x) = x
+"transgen1/transgen1/ijji" [~1] forall f i j x. transgen1 f i j (transgen1 f j i x) = x
+"permgen1/swap=transgen1" [~1] forall f i j. permgen1 f (swap i j) = transgen1 (\x y -> f (swap x y)) i j
+"permgen1/mempty=id" [~1] forall f x. permgen1 f (Permutation (Tree (Trie Map.Tip)) x) = id
+  #-}
+
 class Permutable1 f where
   trans1 :: (Atom -> Atom -> s -> s) -> Atom -> Atom -> f s -> f s
   default trans1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Atom -> Atom -> s -> s) -> Atom -> Atom -> f s -> f s
-  trans1 f a b = to1 . gtrans1 f a b . from1
+  trans1 = transgen1
+  {-# inline trans1 #-}
 
   perm1 :: (Permutation -> s -> s) -> Permutation -> f s -> f s
   default perm1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Permutation -> s -> s) -> Permutation -> f s -> f s
-  perm1 f p = to1 . gperm1 f p . from1
+  perm1 = permgen1
+  {-# inline perm1 #-}
 
 instance Permutable1 Proxy
 instance Permutable1 []
@@ -146,18 +195,36 @@ instance Permutable1 Trie where
     & at j .~ z^.at i
     & at i .~ z^.at j
     where z = f i j <$> s
+  {-# inline trans1 #-}
   perm1 f p0@(Permutation (Tree p) _) t = ifoldr tweak z p where
     tweak i j s = s & at j .~ z^.at i
     z = f p0 <$> t
+  {-# inline perm1 #-}
 
 --------------------------------------------------------------------------------
 -- * Nominal
 --------------------------------------------------------------------------------
 
+sepgen :: Deciding Nominal s => Atom -> s -> Bool
+sepgen a = getPredicate $ deciding (Proxy :: Proxy Nominal) (Predicate (a #))
+{-# inline sepgen #-}
+
+suppgen :: Deciding Nominal s => s -> Support
+suppgen = getSupported $ deciding (Proxy :: Proxy Nominal) (Supported supp)
+{-# inline suppgen #-}
+
+equivgen :: Deciding Nominal s => s -> Atom -> Atom -> Bool
+equivgen s i j = getPredicate (deciding (Proxy :: Proxy Nominal) (Predicate (\s' -> equiv s' i j))) s
+{-# inline equivgen #-}
+
 class Permutable s => Nominal s where
+  -- @
+  -- a # x = not (member a (supp b))
+  -- @
   (#) :: Atom -> s -> Bool
   default (#) :: Deciding Nominal s => Atom -> s -> Bool
-  (#) a = getPredicate $ deciding (Proxy :: Proxy Nominal) (Predicate (a #))
+  (#) = sepgen
+  {-# inline (#) #-}
   -- | The usual convention in nominal sets is to say something like:
   --
   -- @
@@ -180,31 +247,40 @@ class Permutable s => Nominal s where
   -- the set that the answer fails to match
   supp :: s -> Support
   default supp :: Deciding Nominal s => s -> Support
-  supp = getSupported $ deciding (Proxy :: Proxy Nominal) (Supported supp)
+  supp = suppgen
+  {-# inline supp #-}
 
--- equivalent modulo support
-equiv :: Nominal s => s -> Atom -> Atom -> Bool
-equiv (supp -> Supp s) i j = s^.at i == s^.at j
+  fresh :: s -> Atom
+  fresh (supp -> Supp s) = maybe (A 0) (1+) $ sup s
+  {-# inline fresh #-}
 
--- lame
-fresh :: Nominal s => s -> Atom
-fresh (supp -> Supp s) = maybe (A 0) (1+) $ sup s
+  -- equivalent modulo support
+  equiv :: s -> Atom -> Atom -> Bool
+  default equiv :: Deciding Nominal s => s -> Atom -> Atom -> Bool
+  equiv = equivgen
+  {-# inline equiv #-}
 
 instance Nominal Permutation where
   a # Permutation (Tree t) _ = not (Trie.member a t)
   supp (Permutation (Tree t) _) = Supp t
+  equiv = equiv . supp
 
 instance Nominal Support where
   a # Supp s = not (Trie.member a s)
   supp = id
+  equiv (Supp s) i j = s^.at i == s^.at j
 
 instance Nominal Atom where
+  equiv a b c = (a == b) == (a == c)
+  fresh 0 = 1
+  fresh _ = 0
   (#) = (/=)
   supp a = Supp (Trie.singleton a ())
 
 instance Nominal Set where
   a # s = not (Nominal.Set.member a s)
   supp (Set s) = Supp s
+  equiv s i j = Nominal.Set.member i s == Nominal.Set.member j s
 
 instance (Nominal a, Nominal b) => Nominal (a, b)
 instance (Nominal a, Nominal b, Nominal c) => Nominal (a, b, c)
@@ -213,13 +289,24 @@ instance (Nominal a, Nominal b) => Nominal (Either a b)
 instance Nominal a => Nominal [a]
 instance Nominal a => Nominal (Maybe a)
 instance Nominal (Proxy a)
-instance Nominal Void
+instance Nominal Void where
+  equiv = absurd
+  fresh = absurd
+  supp  = absurd
+  (#) _ = absurd
+
 instance Nominal ()
-instance Nominal Bool
+instance Nominal Bool where
+  equiv _ _ _ = True
+  fresh _ = A 0
 instance Nominal Int where
+  equiv _ _ _ = True
+  fresh _ = A 0
   _ # _ = True
   supp _ = mempty
 instance Nominal Word where
+  equiv _ _ _ = True
+  fresh _ = A 0
   _ # _ = True
   supp _ = mempty
 

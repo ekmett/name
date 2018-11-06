@@ -33,7 +33,9 @@ import Nominal.Class
 import Nominal.Support
 import qualified Prelude
 import Prelude
-  ( Either(..), Eq(..), Ord(..), Show(..), Read(..), Maybe(..), Bool(..), ($)
+  ( Either(..)
+  , Eq(..), Ord(..), Show(..), Read(..), Maybe(..), Bool(..), Bounded(..), Enum(..)
+  , ($)
   , Functor(..), (<$>)
   , Foldable(foldMap)
   , Monoid(..), Semigroup(..)
@@ -77,6 +79,8 @@ instance (Permutable a, Permutable b) => Permutable (Nom a b) where
 instance (Permutable a, Permutable b) => Nominal (Nom a b) where
   a # Nom s _ = a # s
   supp (Nom s _) = s
+  fresh (Nom s _) = fresh s
+  equiv (Nom s _) = equiv s
 
 instance Permutable (k b a) => Permutable (Op (k :: * -> * -> *) a b)
 instance Nominal (k b a) => Nominal (Op (k :: * -> * -> *) a b)
@@ -494,16 +498,17 @@ instance N Nom where
 
 class Finite a where
   every :: [a]
+  default every :: (Bounded a, Enum a) => [a]
+  every = [minBound .. maxBound]
   -- add generics here
 
-instance Finite Bool where
-  every = [False,True]
+instance Finite ()
+instance Finite Int
+instance Finite Bool
 
 instance Finite Void where
   every = []
 
-instance Finite () where
-  every = [()]
 
 instance Finite a => Finite (Maybe a) where
   every = Nothing : (Just <$> every)
@@ -525,8 +530,13 @@ instance Permutable a => Permutable (Tensor v a) where
 
 instance Nominal a => Nominal (Tensor v a) where
   a # Tensor _ b = a # b
+  {-# inline (#) #-}
   supp (Tensor _ a) = supp a
   {-# inline supp #-}
+  fresh (Tensor _ a) = fresh a
+  {-# inline fresh #-}
+  equiv (Tensor _ a) = equiv a
+  {-# inline equiv #-}
 
 class Cartesian k => FinitelyTensored k where -- only needs closed monoidal
   mapTensor :: k a b -> k (v ⊙ a) (v ⊙ b)
@@ -563,8 +573,12 @@ instance Permutable a => Permutable (Power v a) where
 
 instance (Finite v, Nominal a) => Nominal (Power v a) where
   a # Power f = Prelude.all ((a #) . f) every
+  {-# inline (#) #-}
   supp (Power f) = foldMap (supp . f) every
   {-# inline supp #-}
+  -- default fresh
+  equiv (Power f) b c = Prelude.all (\ v -> equiv (f v) b c) every
+  {-# inline equiv #-}
 
 class Cartesian k => FinitelyPowered k where
   mapPower :: k a b -> k (v ⫛ a) (v ⫛ b)
