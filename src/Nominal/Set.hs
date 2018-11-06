@@ -24,7 +24,6 @@ import Control.Lens
 import Control.Monad (guard)
 import Data.Maybe (isJust)
 import Nominal.Lattice
--- import Nominal.Class
 import qualified Nominal.Internal.Trie as Trie
 import Nominal.Internal.Trie (Trie, Atom(..))
 
