@@ -86,7 +86,7 @@ coziptie = niso_ f g where
 delta :: NI k => k (a ⊸ (b ⊸ c)) (b ⊸ (a ⊸ c))
 delta = niso_ (\(Tie a (Tie b c)) -> Tie b (Tie a c)) (\(Tie a (Tie b c)) -> Tie b (Tie a c))
 
-kappa :: (N k, Nominal a) => k a (Atom ⊸ a)
+kappa :: (N k, Nominal a, Fresh b) => k a (b ⊸ a)
 kappa = nom_ $ \x -> Tie (fresh $ supp x) x
 
 type (∙) = Untie
@@ -115,20 +115,20 @@ pi2 = nom_ $ \ (Untie _ b) -> b
 
 -- this requires a 'fresh', what subset of irrefutable definitions match here?
 
-unit :: (N k, Nominal a) => k a (Atom ⊸ (a ∙ Atom))
+unit :: (N k, Nominal a, Fresh b) => k a (b ⊸ (a ∙ b))
 unit = nom_ $ \ y -> let a = fresh (supp y) in Tie a (Untie y a)
 
-counit :: (N k, Permutable a) => k ((Atom ⊸ a) ∙ Atom) a
-counit = nom_ $ \(Untie (Tie d a) c) -> trans c d a
+counit :: (N k, Permutable a, Irrefutable b) => k ((b ⊸ a) ∙ b) a
+counit = nom_ $ \(Untie (Tie d a) c) -> perm (match c d) a
 
-leftAdjunct :: (N k, Nominal a) => k (a ∙ Atom) b -> k a (Atom ⊸ b)
+leftAdjunct :: (N k, Nominal a, Fresh c) => k (a ∙ c) b -> k a (c ⊸ b)
 leftAdjunct = nar $ \f y ->
    let a = fresh (supp y)
    in Tie a (f (Untie y a))
 
-rightAdjunct :: (N k, Permutable b) => k a (Atom ⊸ b) -> k (a ∙ Atom) b
+rightAdjunct :: (N k, Permutable b, Irrefutable c) => k a (c ⊸ b) -> k (a ∙ c) b
 rightAdjunct = nar $ \f (Untie y c) -> case f y of
-  Tie d x -> trans c d x
+  Tie d x -> perm (match c d) x
 
 paired :: (NI k, Permutable a) => ((Atom ⊸ a) ∙ Atom) `k` (Atom, a)
 paired = niso_ f g where
