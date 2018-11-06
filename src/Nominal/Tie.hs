@@ -36,8 +36,10 @@ data Tie a = Tie !Atom a
   deriving (Show, Functor, Foldable, Traversable)
 
 instance (Eq a, Nominal a) => Eq (Tie a) where
-  Tie a as == Tie b bs = trans c a as == trans c b bs where
-    c = fresh (a, b, as, bs)
+  Tie a as == Tie b bs 
+    | a == b    = as == bs
+    | otherwise = as == trans a b bs
+    -- | otherwise = trans c a as == trans c b bs where c = fresh (a, b, as, bs)
 
 instance Permutable a => Permutable (Tie a) where
   trans i j (Tie a b) = Tie (trans i j a) (trans i j b)

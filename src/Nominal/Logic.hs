@@ -14,7 +14,7 @@
 ---------------------------------------------------------------------------------
 
 module Nominal.Logic
-( Prop
+( Prop(..)
 , neg, implies, iff, top
 , liftB, liftB2
 ) where
