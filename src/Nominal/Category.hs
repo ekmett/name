@@ -26,6 +26,7 @@ import qualified Control.Arrow as Arrow
 import Control.Category
 import GHC.Exts
 import GHC.Generics
+import Data.Kind
 import Data.Void
 import Nominal.Class
 import Nominal.Support
@@ -412,7 +413,7 @@ instance (Distributive k, OpDistributive k) => OpDistributive (Core k) where
 class Cartesian k => CCC k where
   apply     :: k (k a b , a) b
   uncurry   :: k a (k b c) -> k (a,b) c
-  type Ob k :: * -> Constraint
+  type Ob k :: Type -> Constraint
   curry     :: Ob k a => k (a,b) c -> k a (k b c)
   const     :: Ob k a => k a (k b a)
   unitArrow :: Ob k a => k a (k () a)
