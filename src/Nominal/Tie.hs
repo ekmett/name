@@ -23,6 +23,7 @@
 module Nominal.Tie where
 
 import Control.Lens hiding (to, from)
+import GHC.Generics
 import Nominal.Atom
 import Nominal.Category
 import Nominal.Class
@@ -30,13 +31,14 @@ import Nominal.Permutation
 import Nominal.Support
 
 -- tie is a fully faithful functor from Nom -> Nom
+-- unmap :: Nom (Tie a) (Tie b) -> Nom a b
 
 data Tie a = Tie !Atom a
   deriving (Show, Functor, Foldable, Traversable)
 
 instance (Eq a, Nominal a) => Eq (Tie a) where
   Tie a as == Tie b bs = perm (swap c a) as == perm (swap c b) bs where
-    c = fresh (supp a <> supp b <> supp as <> supp bs)
+    c = fresh (a, b, as, bs)
 
 instance Permutable a => Permutable (Tie a) where
   perm s (Tie a b) = Tie (perm s a) (perm s b)
@@ -48,6 +50,10 @@ instance Nominal a => Nominal (Tie a) where
   supp (Tie a b) = case supp b of
     Supp xs -> Supp $ xs & at a .~ Nothing -- merge that element into U
 
+instance Nominal1 Tie where
+  supp1 f (Tie a b) = case f b of
+    Supp xs -> Supp $ xs & at a .~ Nothing
+
 -- type NominalPrism s t a b = forall p. NominalCostrong p => Nom (p a b) (p s t)
 -- type NominalLens s t a b = forall p. NominalStrong p => Nom (p a b) (p s t)
 -- type NominalIso s t a b = forall p. NominalProfunctor p => Nom (p a b) (p s t)
@@ -55,7 +61,7 @@ instance Nominal a => Nominal (Tie a) where
 ziptie :: (N k, Nominal x, Nominal y) => (Tie x, Tie y) `k` Tie (x, y)
 ziptie = nom_ go where
   go (Tie a as, Tie b bs) = Tie c (perm (swap c a) as, perm (swap c b) bs) where
-    c = fresh (supp a <> supp b <> supp as <> supp bs)
+    c = fresh (a, b, as, bs)
 
 unziptie :: N k => Tie (x, y) `k` (Tie x, Tie y)
 unziptie = nom_ $ \ (Tie a (x,y)) -> (Tie a x, Tie a y)
@@ -78,7 +84,12 @@ kappa = nom_ $ \x -> Tie (fresh $ supp x) x
 
 -- invariant: Untie x a -- should only be constructed for a # x
 data Untie a = Untie a !Atom deriving
-  (Show) -- , Functor, Foldable, Traversable)
+  (Show, Generic, Generic1)
+
+instance Permutable a => Permutable (Untie a)
+instance Permutable1 Untie
+instance Nominal a => Nominal (Untie a)
+instance Nominal1 Untie
 
 --class NominalFunctor f where
 --  nmap :: (Nominal a, Nominal b) => Nom a b -> Nom (f a) (f b)
@@ -100,6 +111,12 @@ rightAdjunct :: (N k, Permutable x) => k y (Tie x) -> k (Untie y) x
 rightAdjunct = nar $ \f (Untie y c) -> case f y of
   Tie d x -> perm (swap c d) x
 
+pi1 :: (N k, Nominal x) => k (Untie x) x
+pi1 = nom_ $ \ (Untie x _) -> x
+
+pi2 :: (N k, Nominal x) => k (Untie x) Atom
+pi2 = nom_ $ \ (Untie _ a) -> a
+
 -- @
 -- hither . yon = id
 -- yon . hither = id
@@ -109,29 +126,3 @@ hither = nom_ $ \(Untie (Tie a x) a') -> (a', perm (swap a' a) x)
 
 yon :: N k => (Atom, x) `k` Untie (Tie x)
 yon = nom_ $ \(a, x) -> Untie (Tie a x) a
-
-{-
-class Restrictive x where
-  -- |
-  -- @
-  -- restrict . nreturn = id
-  -- restrict . fmap restrict = restrict . fmap restrict . delta
-  -- restrict (Tie a x) = a -\- x
-  -- @
-  restrict :: Tie x -> x
-  restrict (Tie a x) = a -\- x
-
-  -- |
-  -- @
-  -- a # a #\ x
-  -- a # x ⇒  a #\ x = x
-  -- a #\ b #\ x = b #\ a #\ x
-  -- @
-  -- |
-  (#\) :: Atom -> x -> x
-  a #\ x = restrict (Tie a x)
-
-  {-# MINIMINAL restrict | (-\-) #-}
-
-infixr 6 -\-
--}

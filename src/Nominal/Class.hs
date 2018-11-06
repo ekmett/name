@@ -21,6 +21,7 @@ module Nominal.Class
 ( Permutable(..)
 , Permutable1(..)
 , Nominal(..), equiv, fresh
+, Nominal1(..)
 -- , (#), support
 , NominalSemigroup
 , NominalMonoid
@@ -80,6 +81,8 @@ instance (Permutable a, Permutable b) => Permutable (a -> b) where
 
 instance Permutable Prop
 instance (Permutable a, Permutable b) => Permutable (a, b)
+instance (Permutable a, Permutable b, Permutable c) => Permutable (a, b, c)
+instance (Permutable a, Permutable b, Permutable c, Permutable d) => Permutable (a, b, c, d)
 instance (Permutable a, Permutable b) => Permutable (Either a b)
 instance Permutable a => Permutable [a]
 instance Permutable a => Permutable (Maybe a)
@@ -103,6 +106,8 @@ instance Permutable1 Proxy
 instance Permutable1 []
 instance Permutable1 Maybe
 instance Permutable a => Permutable1 ((,)a)
+instance (Permutable a, Permutable b) => Permutable1 ((,,) a b)
+instance (Permutable a, Permutable b, Permutable c) => Permutable1 ((,,,) a b c)
 instance Permutable a => Permutable1 (Either a)
 
 instance Permutable1 Trie where
@@ -160,6 +165,8 @@ instance Nominal Set where
   supp (Set s) = Supp s
 
 instance (Nominal a, Nominal b) => Nominal (a, b)
+instance (Nominal a, Nominal b, Nominal c) => Nominal (a, b, c)
+instance (Nominal a, Nominal b, Nominal c, Nominal d) => Nominal (a, b, c, d)
 instance (Nominal a, Nominal b) => Nominal (Either a b)
 instance Nominal a => Nominal [a]
 instance Nominal a => Nominal (Maybe a)
@@ -169,6 +176,23 @@ instance Nominal ()
 instance Nominal Bool
 instance Nominal Int where supp _ = mempty
 instance Nominal Word where supp _ = mempty
+
+--------------------------------------------------------------------------------
+-- * Lifted Nominal Support
+--------------------------------------------------------------------------------
+
+class Permutable1 f => Nominal1 f where
+  supp1 :: (s -> Support) -> f s -> Support
+  default supp1 :: Deciding1 Nominal f => (s -> Support) -> f s -> Support
+  supp1 f = getSupported $ deciding1 (Proxy :: Proxy Nominal) (Supported supp) (Supported f)
+
+instance Nominal1 []
+instance Nominal1 Maybe
+instance Nominal1 Proxy
+instance Nominal a => Nominal1 ((,) a)
+instance (Nominal a, Nominal b) => Nominal1 ((,,) a b)
+instance (Nominal a, Nominal b, Nominal c) => Nominal1 ((,,,) a b c)
+instance Nominal a => Nominal1 (Either a)
 
 -- (#) :: (Nominal a, Nominal b) => a -> b -> Bool
 -- a # b = supp a `disjoint` supp b
