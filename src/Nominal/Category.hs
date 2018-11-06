@@ -3,9 +3,11 @@
 {-# language TypeOperators #-}
 {-# language FlexibleInstances #-}
 {-# language TypeApplications #-}
+{-# language DefaultSignatures #-}
 {-# language ScopedTypeVariables #-}
 {-# language RankNTypes #-}
 {-# language DeriveFunctor #-}
+{-# language DeriveGeneric #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -23,12 +25,13 @@ import Control.Applicative (Applicative(..), Alternative(..))
 import qualified Control.Arrow as Arrow
 import Control.Category
 import GHC.Exts
+import GHC.Generics
 import Data.Void
 import Nominal.Class
 import Nominal.Support
 import qualified Prelude
 import Prelude
-  ( Either(..), Eq(..), Maybe(..), Bool(..), ($)
+  ( Either(..), Eq(..), Ord(..), Show(..), Read(..), Maybe(..), Bool(..), ($)
   , Functor(..), (<$>)
   , Foldable(foldMap)
   , Monoid(..), Semigroup(..)
@@ -38,10 +41,31 @@ type (+) = Either
 
 data Nom a b = Nom Support (a -> b)
 
+data Op k a b = Op { getOp :: k b a }
+  deriving (Eq,Ord,Show,Read,Generic)
+
+data Core k a b = Core { fwd :: k a b, bwd :: k b a }
+  deriving (Eq,Ord,Show,Read,Generic)
+
+invCore :: Core k a b -> Core k b a
+invCore (Core f g) = Core g f
+
 instance Category Nom where
   id = Nom mempty id
   {-# inline id #-}
   Nom s f . Nom t g = Nom (s<>t) (f.g)
+  {-# inline (.) #-}
+
+instance Category k => Category (Op k) where
+  id = Op id
+  {-# inline id #-}
+  Op f . Op g = Op (g . f)
+  {-# inline (.) #-}
+
+instance Category k => Category (Core k) where
+  id = Core id id
+  {-# inline id #-}
+  Core f g . Core h i = Core (f . h) (i . g)
   {-# inline (.) #-}
 
 instance (Permutable a, Permutable b) => Permutable (Nom a b) where
@@ -49,6 +73,12 @@ instance (Permutable a, Permutable b) => Permutable (Nom a b) where
 
 instance (Permutable a, Permutable b) => Nominal (Nom a b) where
   supp (Nom s _) = s
+
+instance Permutable (k b a) => Permutable (Op (k :: * -> * -> *) a b)
+instance Nominal (k b a) => Nominal (Op (k :: * -> * -> *) a b)
+
+instance (Permutable (k a b), Permutable (k b a)) => Permutable (Core k a b)
+instance (Nominal (k a b), Nominal (k b a)) => Nominal (Core k a b)
 
 suppNom :: Nom a b -> Support
 suppNom (Nom s _) = s
@@ -71,7 +101,6 @@ class Category k => MonoidalP k where
   lcounit :: k ((),a) a
   runit   :: k a (a,())
   rcounit :: k (a,()) a
-  it      :: k a ()
 
 instance MonoidalP (->) where
   (***) f g (a,c) = (f a, g c)
@@ -94,8 +123,6 @@ instance MonoidalP (->) where
   {-# inline runit #-}
   rcounit = Prelude.fst
   {-# inline rcounit #-}
-  it _ = ()
-  {-# inline it #-}
 
 instance MonoidalP Nom where
   Nom s f *** Nom t g = Nom (s <> t) (f *** g)
@@ -118,13 +145,56 @@ instance MonoidalP Nom where
   {-# inline runit #-}
   rcounit = nom_ rcounit
   {-# inline rcounit #-}
-  it = nom_ it
-  {-# inline it #-}
+
+instance MonoidalP k => MonoidalP (Op k) where
+  Op f *** Op g = Op (f *** g)
+  {-# inline (***) #-}
+  first (Op f) = Op (first f)
+  {-# inline first #-}
+  second (Op g) = Op (second g)
+  {-# inline second #-}
+  swapP = Op swapP
+  {-# inline swapP #-}
+  lassocP = Op rassocP
+  {-# inline lassocP #-}
+  rassocP = Op lassocP
+  {-# inline rassocP #-}
+  lunit = Op lcounit
+  {-# inline lunit #-}
+  runit = Op rcounit
+  {-# inline runit #-}
+  lcounit = Op lunit
+  {-# inline lcounit #-}
+  rcounit = Op runit
+  {-# inline rcounit #-}
+
+instance MonoidalP k => MonoidalP (Core k) where
+  Core f g *** Core h i = Core (f *** h) (g *** i)
+  {-# inline (***) #-}
+  first (Core f g) = Core (first f) (first g)
+  {-# inline first #-}
+  second (Core f g) = Core (second f) (second g)
+  {-# inline second #-}
+  swapP = Core swapP swapP
+  {-# inline swapP #-}
+  lassocP = Core lassocP rassocP
+  {-# inline lassocP #-}
+  rassocP = Core rassocP lassocP
+  {-# inline rassocP #-}
+  lunit = Core lunit lcounit
+  {-# inline lunit #-}
+  runit = Core runit rcounit
+  {-# inline runit #-}
+  lcounit = Core lcounit lunit
+  {-# inline lcounit #-}
+  rcounit = Core rcounit runit
+  {-# inline rcounit #-}
 
 class MonoidalP k => Cartesian k where
   exl :: k (a,b) a
   exr :: k (a,b) b
   dup :: k a (a,a)
+  it  :: k a ()
 
 (&&&) :: Cartesian k => k a b -> k a c -> k a (b,c)
 f &&& g = (f *** g) . dup
@@ -137,6 +207,8 @@ instance Cartesian (->) where
   {-# inline exr #-}
   dup a = (a,a)
   {-# inline dup #-}
+  it _ = ()
+  {-# inline it #-}
 
 instance Cartesian Nom where
   exl = nom_ exl
@@ -145,6 +217,8 @@ instance Cartesian Nom where
   {-# inline exr #-}
   dup = nom_ dup
   {-# inline dup #-}
+  it = nom_ it
+  {-# inline it #-}
 
 class Category k => MonoidalS k where
   (+++)    :: k a b -> k c d -> k (a+c) (b+d)
@@ -157,7 +231,6 @@ class Category k => MonoidalS k where
   lcounitS :: k a (Void+a)
   runitS   :: k (a+Void) a
   rcounitS :: k a (a+Void)
-  ti       :: k Void a
 
 instance MonoidalS (->) where
   (+++) = (Arrow.+++)
@@ -184,8 +257,6 @@ instance MonoidalS (->) where
   {-# inline runitS #-}
   rcounitS = Left
   {-# inline rcounitS #-}
-  ti = absurd
-  {-# inline ti #-}
 
 instance MonoidalS Nom where
   Nom s f +++ Nom t g = Nom (s <> t) (f +++ g)
@@ -208,24 +279,59 @@ instance MonoidalS Nom where
   {-# inline runitS #-}
   rcounitS = nom_ rcounitS
   {-# inline rcounitS #-}
-  ti = nom_ absurd
-  {-# inline ti #-}
+
+instance MonoidalS k => MonoidalS (Op k) where
+  Op f +++ Op g = Op (f +++ g)
+  {-# inline (+++) #-}
+  left (Op f) = Op (left f)
+  {-# inline left #-}
+  right (Op g) = Op (right g)
+  {-# inline right #-}
+  swapS = Op swapS
+  {-# inline swapS #-}
+  lassocS = Op rassocS
+  {-# inline lassocS #-}
+  rassocS = Op lassocS
+  {-# inline rassocS #-}
+  lunitS = Op lcounitS
+  {-# inline lunitS #-}
+  runitS = Op rcounitS
+  {-# inline runitS #-}
+  lcounitS = Op lunitS
+  {-# inline lcounitS #-}
+  rcounitS = Op runitS
+  {-# inline rcounitS #-}
+
+instance MonoidalS k => MonoidalS (Core k) where
+  Core f g +++ Core h i = Core (f +++ h) (g +++ i)
+  {-# inline (+++) #-}
+  left (Core f g) = Core (left f) (left g)
+  {-# inline left #-}
+  right (Core f g) = Core (right f) (right g)
+  {-# inline right #-}
+  swapS = Core swapS swapS
+  {-# inline swapS #-}
+  lassocS = Core lassocS rassocS
+  {-# inline lassocS #-}
+  rassocS = Core rassocS lassocS
+  {-# inline rassocS #-}
+  lunitS = Core lunitS lcounitS
+  {-# inline lunitS #-}
+  runitS = Core runitS rcounitS
+  {-# inline runitS #-}
+  lcounitS = Core lcounitS lunitS
+  {-# inline lcounitS #-}
+  rcounitS = Core rcounitS runitS
+  {-# inline rcounitS #-}
 
 class MonoidalS k => Cocartesian k where
   inl      :: k a (a+b)
   inr      :: k b (a+b)
   jam      :: k (a+a) a
+  ti       :: k Void a
 
 (|||) :: Cocartesian k => k a c -> k b c -> k (Either a b) c
 f ||| g = jam . (f +++ g)
-
-factorr :: (Cartesian k, Cocartesian k) => k ((u,b)+(v,b)) ((u+v),b)
-factorr = first inl ||| first inr
-{-# inline factorr #-}
-
-factorl :: (Cartesian k, Cocartesian k) => k ((a,b)+(a,c)) (a,(b+c))
-factorl = second inl ||| second inr
-{-# inline factorl #-}
 
 instance Cocartesian (->) where
   inl = Left
@@ -234,6 +340,8 @@ instance Cocartesian (->) where
   {-# inline inr #-}
   jam = Prelude.either id id
   {-# inline jam #-}
+  ti = absurd
+  {-# inline ti #-}
 
 instance Cocartesian Nom where
   inl = nom_ inl
@@ -242,10 +350,26 @@ instance Cocartesian Nom where
   {-# inline inr #-}
   jam = nom_ jam
   {-# inline jam #-}
+  ti = nom_ absurd
+  {-# inline ti #-}
 
-class (Cartesian k, Cocartesian k) => Distributive k where
+class (MonoidalP k, MonoidalS k) => Distributive k where
   distr :: k ((u+v),b) ((u,b)+(v,b))
   distl :: k (a,(u+v)) ((a,u)+(a,v))
+
+class (MonoidalP k, MonoidalS k) => OpDistributive k where
+  factorl :: k ((a,b)+(a,c)) (a,(b+c))
+  default factorl :: (Cartesian k, Cocartesian k) => k ((a,b)+(a,c)) (a,(b+c))
+  factorl = second inl ||| second inr
+  {-# inline factorl #-}
+
+  factorr :: k ((u,b)+(v,b)) ((u+v),b)
+  default factorr :: (Cartesian k, Cocartesian k) => k ((u,b)+(v,b)) ((u+v),b)
+  factorr = first inl ||| first inr
+  {-# inline factorr #-}
+
+instance OpDistributive (->)
+instance OpDistributive Nom
 
 instance Distributive (->) where
   distr (Left u,b) = Left (u,b)
@@ -261,17 +385,33 @@ instance Distributive Nom where
   distl = nom_ distl
   {-# inline distl #-}
 
+instance OpDistributive k => Distributive (Op k) where
+  distr = Op factorr
+  {-# inline distr #-}
+  distl = Op factorl
+  {-# inline distl #-}
+
+instance Distributive k => OpDistributive (Op k) where
+  factorr = Op distr
+  {-# inline factorr #-}
+  factorl = Op distl
+  {-# inline factorl#-}
+
+instance (Distributive k, OpDistributive k) => Distributive (Core k) where
+  distr = Core distr factorr
+  {-# inline distr #-}
+  distl = Core distl factorl
+  {-# inline distl #-}
+
+instance (Distributive k, OpDistributive k) => OpDistributive (Core k) where
+  factorr = Core factorr distr
+  {-# inline factorr #-}
+  factorl = Core factorl distl
+  {-# inline factorl #-}
+
 class Cartesian k => CCC k where
   apply     :: k (k a b , a) b
   uncurry   :: k a (k b c) -> k (a,b) c
-
-  -- pragmatically limit "Ob" constraints to just things we're going to pass into the environment
-  -- pushing them here makes GHC do all the work, at the expense of making all the previous statements
-  -- about being a real category a bit of a lie. Another way to think about is that both Nom and (->)
-  -- are Cartesian, Cocartesian, etc. independent of constraints on the objects they use. But we have
-  -- to restrict to some sub-category to handle currying, etc. The classes here capture any category
-  -- that respects parametricity, but which has restrictions on what can be put into the environment.
-
   type Ob k :: * -> Constraint
   curry     :: Ob k a => k (a,b) c -> k a (k b c)
   const     :: Ob k a => k a (k b a)
@@ -306,13 +446,27 @@ instance CCC Nom where
   unitArrow = Nom mempty $ \a -> Nom (supp a) (unitArrow a)
   {-# inline unitArrow #-}
 
--- convenient for writing general purpose code abstract whether it is an arrow or in Nom
-class (CCC k, Cocartesian k) => N k where
-  nom :: Support -> (a -> b) -> k a b -- construct a nominal arrow with manual support, unsafe
-  -- requires type applications
-  con :: proxy k -> (k ~ (->) => r) -> r -> r
+niso_ :: NI k => (a -> b) -> (b -> a) -> k a b
+niso_ = niso mempty
 
-  -- internal workhorse, unsafe
+class (Distributive k, OpDistributive k) => NI k where
+  niso :: Support -> (a -> b) -> (b -> a) -> k a b
+
+instance NI (->) where
+  niso _ f _ = f
+
+instance NI Nom where
+  niso s f _ = Nom s f
+
+instance NI k => NI (Op k) where
+  niso s f g = Op (niso s g f)
+
+instance NI k => NI (Core k) where
+  niso s f g = Core (niso s f g) (niso s g f)
+
+class (NI k, CCC k, Cocartesian k) => N k where
+  nom :: Support -> (a -> b) -> k a b
+  con :: p k -> (k ~ (->) => r) -> r -> r
   nar :: ((a->b)->(c->d)) -> k a b -> k c d
 
 instance N (->) where
