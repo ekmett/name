@@ -70,6 +70,7 @@ instance Category k => Category (Core k) where
   {-# inline (.) #-}
 
 instance (Permutable a, Permutable b) => Permutable (Nom a b) where
+  trans i j (Nom s f) = Nom (trans i j s) (trans i j f)
   perm p (Nom s f) = Nom (perm p s) (perm p f)
 
 instance (Permutable a, Permutable b) => Nominal (Nom a b) where
@@ -513,6 +514,7 @@ data Tensor v a = Tensor v a -- v should be 'invisible' within Nom, I give no No
   deriving (Eq, Functor)
 
 instance Permutable a => Permutable (Tensor v a) where
+  trans i j (Tensor v a) = Tensor v (trans i j a)
   perm p (Tensor v a) = Tensor v (perm p a) -- v many copies of a?
   {-# inline perm #-}
 
@@ -549,6 +551,7 @@ instance (Finite v, Eq a) => Eq (Power v a) where
   {-# inline (==) #-}
 
 instance Permutable a => Permutable (Power v a) where
+  trans i j (Power f) = Power (trans i j . f)
   perm p (Power f) = Power (perm p . f)
   {-# inline perm #-}
 

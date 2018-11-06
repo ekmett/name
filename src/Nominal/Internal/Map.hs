@@ -103,9 +103,11 @@ trim (Map _ t0) = Map (Supp (() <$ t0) <> foldMap supp t0) t0
 
 instance Permutable1 Map where
   perm1 f p (Map s t) = Map (perm p s) (perm1 f p t)
+  trans1 f i j (Map s t) = Map (trans i j s) (trans1 f i j t)
 
 instance Permutable a => Permutable (Map a) where
   perm p (Map s t) = Map (perm p s) (perm p t)
+  trans i j (Map s t) = Map (trans i j s) (trans i j t)
 
 instance Permutable a => Nominal (Map a) where
   supp (Map s _) = s

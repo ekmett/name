@@ -29,6 +29,7 @@ instance Monad Suspended where
 
 instance Permutable (Suspended a) where
   perm p (Suspended q a) = Suspended (p <> q) a
+  trans i j (Suspended q a) = Suspended (swap i j <> q) a
 
 instance Nominal a => Nominal (Suspended a) where
   supp (Suspended q a) = perm q (supp a)

@@ -41,10 +41,12 @@ instance (Eq a, Nominal a) => Eq (Tie a) where
     c = fresh (a, b, as, bs)
 
 instance Permutable a => Permutable (Tie a) where
+  trans i j (Tie a b) = Tie (trans i j a) (trans i j b)
   perm s (Tie a b) = Tie (perm s a) (perm s b)
 
 instance Permutable1 Tie where
   perm1 f s (Tie a b) = Tie (perm s a) (f s b)
+  trans1 f i j (Tie a b) = Tie (trans i j a) (f i j b)
 
 instance Nominal a => Nominal (Tie a) where
   supp (Tie a b) = case supp b of
