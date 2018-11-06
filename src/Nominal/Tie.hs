@@ -22,111 +22,115 @@
 
 module Nominal.Tie where
 
-import Control.Lens hiding (to, from,(#))
 import GHC.Generics
 import Nominal.Atom
+import Nominal.Binding
 import Nominal.Category
 import Nominal.Class
+import Nominal.Lattice
+import Nominal.Set
 import Nominal.Support
 
--- tie is a fully faithful functor from Nom -> Nom
--- unmap :: Nom (Tie a) (Tie b) -> Nom a b
+type (⊸) = Tie
 
-data Tie a = Tie !Atom a
-  deriving (Show, Functor, Foldable, Traversable)
+data Tie a b = Tie a b
+  deriving (Generic, Generic1, Show, Functor, Foldable, Traversable)
 
-instance (Eq a, Nominal a) => Eq (Tie a) where
-  Tie a as == Tie b bs 
-    | a == b    = as == bs
-    | otherwise = as == trans a b bs
-    -- | otherwise = trans c a as == trans c b bs where c = fresh (a, b, as, bs)
+instance (Eq a, Binding a, Eq b, Nominal b) => Eq (Tie a b) where
+  Tie a as == Tie b bs
+    | a == b = as == bs
+    | otherwise = case binding a b of
+      Nothing -> False
+      Just p   -> sep bs (bv a \\ bv b) && as == perm p bs
 
-instance Permutable a => Permutable (Tie a) where
+sep :: Nominal a => a -> Set -> Bool
+sep = undefined
+
+instance (Permutable a, Permutable b) => Permutable (Tie a b) where
   trans i j (Tie a b) = Tie (trans i j a) (trans i j b)
   {-# inline trans #-}
   perm s (Tie a b) = Tie (perm s a) (perm s b)
   {-# inline perm #-}
 
-instance Permutable1 Tie where
+instance Permutable a => Permutable1 (Tie a) where
   perm1 f s (Tie a b) = Tie (perm s a) (f s b)
   {-# inline perm1 #-}
   trans1 f i j (Tie a b) = Tie (trans i j a) (f i j b)
   {-# inline trans1 #-}
 
-instance Nominal a => Nominal (Tie a) where
-  a # Tie b x = a == b || a # x
+instance (Binding a, Nominal b) => Nominal (Tie a b) where
+  a # Tie b x = member a (bv b) || a # x
   {-# inline (#) #-}
-  equiv = equiv . supp
-  {-# inline equiv #-}
-  fresh (Tie a _) = a
-  {-# inline fresh #-}
-  supp (Tie a b) = case supp b of
-    Supp xs -> Supp $ xs & at a .~ Nothing -- merge that element into U
+  -- fresh (Tie a b) -- pick a member of bv a, or compute something fresh w.r.t. x, if that is empty
+  -- {-# inline fresh #-}
+  supp (Tie a b) = supp b `sans` bv a
   {-# inline supp #-}
 
-instance Nominal1 Tie where
-  supp1 f (Tie a b) = case f b of
-    Supp xs -> Supp $ xs & at a .~ Nothing
+instance Binding a => Nominal1 (Tie a) where
+  supp1 f (Tie a b) = f b `sans` bv a
 
--- type NominalPrism s t a b = forall p. NominalCostrong p => Nom (p a b) (p s t)
--- type NominalLens s t a b = forall p. NominalStrong p => Nom (p a b) (p s t)
--- type NominalIso s t a b = forall p. NominalProfunctor p => Nom (p a b) (p s t)
+unziptie :: N k => k (a ⊸ (x, y)) (a ⊸ x, a ⊸ y)
+unziptie = nom_ $ \(Tie a (x,y)) -> (Tie a x, Tie a y)
 
-ziptie :: (NI k, Nominal x, Nominal y) => (Tie x, Tie y) `k` Tie (x, y)
-ziptie = niso_ f g where
-  f (Tie a as, Tie b bs) = Tie c (trans c a as, trans c b bs) where
-    c = fresh (a, b, as, bs)
-  g (Tie a (x,y)) = (Tie a x, Tie a y)
+ziptie :: (NI k, Irrefutable a, Permutable y) => k (a ⊸ x, a ⊸ y) (a ⊸ (x, y))
+ziptie = niso_ f unziptie where
+  f (Tie a as, Tie b bs) = Tie a (as, perm (match a b) bs)
 
-coziptie :: NI k => Either (Tie x) (Tie y) `k` Tie (Either x y)
+coziptie :: NI k => k (Either (a ⊸ x) (a ⊸ y)) (a ⊸ Either x y)
 coziptie = niso_ f g where
   f (Left (Tie a as)) = Tie a (Left as)
   f (Right (Tie a as)) = Tie a (Right as)
   g (Tie a (Left as)) = Left (Tie a as)
   g (Tie a (Right bs)) = Right (Tie a bs)
 
-delta :: N k => Tie (Tie a) `k` Tie (Tie a)
-delta = nom_ $ \ (Tie a (Tie b x)) -> Tie b (Tie a x)
+delta :: NI k => k (a ⊸ (b ⊸ c)) (b ⊸ (a ⊸ c))
+delta = niso_ (\(Tie a (Tie b c)) -> Tie b (Tie a c)) (\(Tie a (Tie b c)) -> Tie b (Tie a c))
 
-kappa :: (N k, Nominal a) => k a (Tie a)
+kappa :: (N k, Nominal a) => k a (Atom ⊸ a)
 kappa = nom_ $ \x -> Tie (fresh $ supp x) x
 
--- invariant: Untie x a -- should only be constructed for a # x
-data Untie a = Untie a !Atom deriving
-  (Show, Generic, Generic1)
+type (∙) = Untie
 
-instance Permutable a => Permutable (Untie a)
-instance Permutable1 Untie
-instance Nominal a => Nominal (Untie a)
-instance Nominal1 Untie
+-- side condition: a # b
+data Untie a b = Untie a b deriving (Eq, Show, Generic, Generic1)
 
---class NominalFunctor f where
---  nmap :: (Nominal a, Nominal b) => Nom a b -> Nom (f a) (f b)
+instance (Permutable a, Permutable b) => Permutable (Untie a b)
+instance Permutable a => Permutable1 (Untie a)
+instance (Nominal a, Binding b) => Nominal (Untie a b)
+instance Nominal a => Nominal1 (Untie a)
+instance (Binding a, Binding b) => Binding (Untie a b)
+instance Binding a => Binding1 (Untie a)
 
---instance NominalFunctor Untie where
+instance (Irrefutable a, Irrefutable b) => Irrefutable (Untie a b) where
+  match (Untie a b) (Untie c d) = match a c <> match b d
 
-unit :: (N k, Nominal y) => y `k` Tie (Untie y)
+instance Irrefutable a => Irrefutable1 (Untie a) where
+  match1 f  (Untie a b) (Untie c d) = match a c <> f b d
+
+pi1 :: N k => k (a ∙ b) a
+pi1 = nom_ $ \ (Untie a _) -> a
+
+pi2 :: N k => k (a ∙ b) b
+pi2 = nom_ $ \ (Untie _ b) -> b
+
+-- this requires a 'fresh', what subset of irrefutable definitions match here?
+
+unit :: (N k, Nominal a) => k a (Atom ⊸ (a ∙ Atom))
 unit = nom_ $ \ y -> let a = fresh (supp y) in Tie a (Untie y a)
 
-counit :: (N k, Permutable a) => Untie (Tie a) `k` a
+counit :: (N k, Permutable a) => k ((Atom ⊸ a) ∙ Atom) a
 counit = nom_ $ \(Untie (Tie d a) c) -> trans c d a
 
-leftAdjunct :: (N k, Nominal y) => k (Untie y) x -> k y (Tie x)
+leftAdjunct :: (N k, Nominal a) => k (a ∙ Atom) b -> k a (Atom ⊸ b)
 leftAdjunct = nar $ \f y ->
    let a = fresh (supp y)
    in Tie a (f (Untie y a))
 
-rightAdjunct :: (N k, Permutable x) => k y (Tie x) -> k (Untie y) x
+rightAdjunct :: (N k, Permutable b) => k a (Atom ⊸ b) -> k (a ∙ Atom) b
 rightAdjunct = nar $ \f (Untie y c) -> case f y of
   Tie d x -> trans c d x
 
-pi1 :: (N k, Nominal x) => k (Untie x) x
-pi1 = nom_ $ \ (Untie x _) -> x
-
-pi2 :: (N k, Nominal x) => k (Untie x) Atom
-pi2 = nom_ $ \ (Untie _ a) -> a
-
-paired :: (NI k, Permutable x) => Untie (Tie x) `k` (Atom, x)
+paired :: (NI k, Permutable a) => ((Atom ⊸ a) ∙ Atom) `k` (Atom, a)
 paired = niso_ f g where
   f (Untie (Tie a x) a') = (a', trans a' a x)
   g (a, x) = Untie (Tie a x) a

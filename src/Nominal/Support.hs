@@ -116,3 +116,5 @@ instance Meet Support where
 (↑) :: Support -> Set -> Support
 x ↑ y = x ∨ set y
 
+sans :: Support -> Set -> Support
+sans (Supp xs) (Set ys) = Supp (Trie.diff xs ys)
