@@ -22,7 +22,7 @@ import Nominal.Category
 data Term
   = Var !Atom
   | App !Term !Term
-  | Lam !(Tie Term)
+  | Lam !(Tie Atom Term)
   deriving (Eq, Generic)
 
 instance Permutable Term
