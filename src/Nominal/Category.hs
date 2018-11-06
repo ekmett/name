@@ -79,7 +79,7 @@ instance (Permutable a, Permutable b) => Permutable (Nom a b) where
 instance (Permutable a, Permutable b) => Nominal (Nom a b) where
   a # Nom s _ = a # s
   supp (Nom s _) = s
-  fresh (Nom s _) = fresh s
+  supply (Nom s _) = supply s
   equiv (Nom s _) = equiv s
 
 instance Permutable (k b a) => Permutable (Op (k :: * -> * -> *) a b)
@@ -533,8 +533,8 @@ instance Nominal a => Nominal (Tensor v a) where
   {-# inline (#) #-}
   supp (Tensor _ a) = supp a
   {-# inline supp #-}
-  fresh (Tensor _ a) = fresh a
-  {-# inline fresh #-}
+  supply (Tensor _ a) = supply a
+  {-# inline supply #-}
   equiv (Tensor _ a) = equiv a
   {-# inline equiv #-}
 
@@ -576,7 +576,7 @@ instance (Finite v, Nominal a) => Nominal (Power v a) where
   {-# inline (#) #-}
   supp (Power f) = foldMap (supp . f) every
   {-# inline supp #-}
-  -- default fresh
+  -- default supply -- could this be better if i computed sups off of each support instead?
   equiv (Power f) b c = Prelude.all (\ v -> equiv (f v) b c) every
   {-# inline equiv #-}
 

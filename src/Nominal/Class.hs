@@ -6,6 +6,7 @@
 {-# language DefaultSignatures #-}
 {-# language PatternSynonyms #-}
 {-# language ViewPatterns #-}
+{-# language DeriveGeneric #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -22,6 +23,10 @@ module Nominal.Class
 , Permutable1(..)
 , Nominal(..)
 , Nominal1(..)
+, Stream(..)
+, Fresh(..)
+, Fresh1(..)
+, fresh
 -- , (#), support
 , NominalSemigroup
 , NominalMonoid
@@ -202,6 +207,18 @@ instance Permutable1 Trie where
   {-# inline perm1 #-}
 
 --------------------------------------------------------------------------------
+-- * Streams
+--------------------------------------------------------------------------------
+
+infixr 6 :-
+data Stream = Atom :- Stream
+  deriving Generic
+
+instance Permutable Stream where
+  trans i j (a :- as) = trans i j a :- trans i j as
+  perm p (a :- as) = perm p a :- perm p as
+
+--------------------------------------------------------------------------------
 -- * Nominal
 --------------------------------------------------------------------------------
 
@@ -218,6 +235,7 @@ equivgen s i j = getPredicate (deciding (Proxy :: Proxy Nominal) (Predicate (\s'
 {-# inline equivgen #-}
 
 class Permutable s => Nominal s where
+
   -- @
   -- a # x = not (member a (supp b))
   -- @
@@ -250,9 +268,11 @@ class Permutable s => Nominal s where
   supp = suppgen
   {-# inline supp #-}
 
-  fresh :: s -> Atom
-  fresh (supp -> Supp s) = maybe (A 0) (1+) $ sup s
-  {-# inline fresh #-}
+  supply :: s -> Stream
+  supply (supp -> Supp s) = go $ maybe (A 0) (1+) $ sup s where
+    go !i = i :- go (i+1)
+
+  {-# inline supply #-}
 
   -- equivalent modulo support
   equiv :: s -> Atom -> Atom -> Bool
@@ -272,8 +292,10 @@ instance Nominal Support where
 
 instance Nominal Atom where
   equiv a b c = (a == b) == (a == c)
-  fresh 0 = 1
-  fresh _ = 0
+  supply i = go 0 where
+    go !j
+      | i == j    = go (j+1)
+      | otherwise = j :- go (j+1)
   (#) = (/=)
   supp a = Supp (Trie.singleton a ())
 
@@ -291,22 +313,19 @@ instance Nominal a => Nominal (Maybe a)
 instance Nominal (Proxy a)
 instance Nominal Void where
   equiv = absurd
-  fresh = absurd
+  supply = absurd
   supp  = absurd
   (#) _ = absurd
 
 instance Nominal ()
 instance Nominal Bool where
   equiv _ _ _ = True
-  fresh _ = A 0
 instance Nominal Int where
   equiv _ _ _ = True
-  fresh _ = A 0
   _ # _ = True
   supp _ = mempty
 instance Nominal Word where
   equiv _ _ _ = True
-  fresh _ = A 0
   _ # _ = True
   supp _ = mempty
 
@@ -329,6 +348,69 @@ instance Nominal a => Nominal1 (Either a)
 
 -- (#) :: (Nominal a, Nominal b) => a -> b -> Bool
 -- a # b = supp a `disjoint` supp b
+
+--------------------------------------------------------------------------------
+-- * Fresh
+--------------------------------------------------------------------------------
+
+class Fresh a where
+  refresh :: Stream -> (a, Stream)
+
+fresh :: (Nominal s, Fresh a) => s -> a
+fresh = fst . refresh . supply
+
+instance Fresh Atom where
+  refresh (a :- as) = (a, as)
+
+instance Fresh () where
+  refresh = (,) ()
+
+instance (Fresh a, Fresh b) => Fresh (a, b) where
+  refresh as = case refresh as of
+    (a,bs) -> case refresh bs of
+      (b,cs) -> ((a,b),cs)
+
+instance (Fresh a, Fresh b, Fresh c) => Fresh (a, b, c) where
+  refresh as = case refresh as of
+    (a,bs) -> case refresh bs of
+      (b,cs) -> case refresh cs of
+        (c,ds) -> ((a,b,c),ds)
+
+instance (Fresh a, Fresh b, Fresh c, Fresh d) => Fresh (a, b, c, d) where
+  refresh as = case refresh as of
+    (a,bs) -> case refresh bs of
+      (b,cs) -> case refresh cs of
+        (c,ds) -> case refresh ds of
+          (d,es) -> ((a,b,c,d),es)
+
+instance Fresh Stream where
+  refresh as@(_ :- bs) = (skip as, skip bs) where
+    skip (x :- _ :- xs) = x :- skip xs
+
+--------------------------------------------------------------------------------
+-- * Lifted Fresh
+--------------------------------------------------------------------------------
+
+class Fresh1 f where
+  refresh1 :: (Stream -> (a, Stream)) -> Stream -> (f a, Stream)
+
+instance Fresh a => Fresh1 ((,) a) where
+  refresh1 f as = case refresh as of
+    (a,bs) -> case f bs of
+      (b,cs) -> ((a,b),cs)
+
+instance (Fresh a, Fresh b) => Fresh1 ((,,) a b) where
+  refresh1 f as = case refresh as of
+    (a,bs) -> case refresh bs of
+      (b,cs) -> case f cs of
+         (c,ds) -> ((a,b,c),ds)
+
+instance (Fresh a, Fresh b, Fresh c) => Fresh1 ((,,,) a b c) where
+  refresh1 f as = case refresh as of
+    (a,bs) -> case refresh bs of
+      (b,cs) -> case refresh cs of
+        (c,ds) -> case f ds of
+          (d,es) -> ((a,b,c,d),es)
 
 --------------------------------------------------------------------------------
 -- * Nominal Semigroups

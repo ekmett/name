@@ -113,5 +113,5 @@ instance Permutable a => Nominal (Map a) where
   a # (Map s _) = a # s
   supp (Map s _) = s
   equiv (Map s _) = equiv s
-  fresh (Map s _) = fresh s
+  supply (Map s _) = supply s
 
