@@ -22,7 +22,7 @@
 
 module Nominal.Tie where
 
-import Control.Lens hiding (to, from)
+import Control.Lens hiding (to, from,(#))
 import GHC.Generics
 import Nominal.Atom
 import Nominal.Category
@@ -48,6 +48,7 @@ instance Permutable1 Tie where
   trans1 f i j (Tie a b) = Tie (trans i j a) (f i j b)
 
 instance Nominal a => Nominal (Tie a) where
+  a # Tie b x = a == b || a # x
   supp (Tie a b) = case supp b of
     Supp xs -> Supp $ xs & at a .~ Nothing -- merge that element into U
 

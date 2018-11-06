@@ -19,7 +19,7 @@
 
 module Nominal.Internal.Map where
 
-import Control.Lens
+import Control.Lens hiding ((#))
 import Data.Functor.Compose
 import Nominal.Class
 import qualified Nominal.Internal.Trie as Trie
@@ -110,5 +110,6 @@ instance Permutable a => Permutable (Map a) where
   trans i j (Map s t) = Map (trans i j s) (trans i j t)
 
 instance Permutable a => Nominal (Map a) where
+  a # (Map s _) = a # s
   supp (Map s _) = s
 

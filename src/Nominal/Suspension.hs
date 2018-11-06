@@ -32,6 +32,7 @@ instance Permutable (Suspended a) where
   trans i j (Suspended q a) = Suspended (swap i j <> q) a
 
 instance Nominal a => Nominal (Suspended a) where
+  a # Suspended q b = perm (inv q) a # b
   supp (Suspended q a) = perm q (supp a)
 
 instance NominalSemigroup a => Semigroup (Suspended a) where

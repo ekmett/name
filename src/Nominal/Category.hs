@@ -28,6 +28,7 @@ import GHC.Exts
 import GHC.Generics
 import Data.Kind
 import Data.Void
+import Nominal.Atom
 import Nominal.Class
 import Nominal.Support
 import qualified Prelude
@@ -74,6 +75,7 @@ instance (Permutable a, Permutable b) => Permutable (Nom a b) where
   perm p (Nom s f) = Nom (perm p s) (perm p f)
 
 instance (Permutable a, Permutable b) => Nominal (Nom a b) where
+  a # Nom s _ = a # s
   supp (Nom s _) = s
 
 instance Permutable (k b a) => Permutable (Op (k :: * -> * -> *) a b)
@@ -81,6 +83,9 @@ instance Nominal (k b a) => Nominal (Op (k :: * -> * -> *) a b)
 
 instance (Permutable (k a b), Permutable (k b a)) => Permutable (Core k a b)
 instance (Nominal (k a b), Nominal (k b a)) => Nominal (Core k a b)
+
+sepNom :: Atom -> Nom a b -> Bool
+sepNom a (Nom s _) = a # s
 
 suppNom :: Nom a b -> Support
 suppNom (Nom s _) = s
@@ -519,6 +524,7 @@ instance Permutable a => Permutable (Tensor v a) where
   {-# inline perm #-}
 
 instance Nominal a => Nominal (Tensor v a) where
+  a # Tensor _ b = a # b
   supp (Tensor _ a) = supp a
   {-# inline supp #-}
 
@@ -556,6 +562,7 @@ instance Permutable a => Permutable (Power v a) where
   {-# inline perm #-}
 
 instance (Finite v, Nominal a) => Nominal (Power v a) where
+  a # Power f = Prelude.all ((a #) . f) every
   supp (Power f) = foldMap (supp . f) every
   {-# inline supp #-}
 

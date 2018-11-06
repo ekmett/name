@@ -31,6 +31,7 @@ module Nominal.Class
 ) where
 
 import Control.Lens hiding (to, from, (#))
+import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Generic
 import Data.Proxy
 import Data.Void
@@ -154,6 +155,9 @@ instance Permutable1 Trie where
 --------------------------------------------------------------------------------
 
 class Permutable s => Nominal s where
+  (#) :: Atom -> s -> Bool
+  default (#) :: Deciding Nominal s => Atom -> s -> Bool
+  (#) a = getPredicate $ deciding (Proxy :: Proxy Nominal) (Predicate (a #))
   -- | The usual convention in nominal sets is to say something like:
   --
   -- @
@@ -187,15 +191,19 @@ fresh :: Nominal s => s -> Atom
 fresh (supp -> Supp s) = maybe (A 0) (1+) $ sup s
 
 instance Nominal Permutation where
+  a # Permutation (Tree t) _ = not (Trie.member a t)
   supp (Permutation (Tree t) _) = Supp t
 
 instance Nominal Support where
+  a # Supp s = not (Trie.member a s)
   supp = id
 
 instance Nominal Atom where
+  (#) = (/=)
   supp a = Supp (Trie.singleton a ())
 
 instance Nominal Set where
+  a # s = not (Nominal.Set.member a s)
   supp (Set s) = Supp s
 
 instance (Nominal a, Nominal b) => Nominal (a, b)
@@ -208,8 +216,12 @@ instance Nominal (Proxy a)
 instance Nominal Void
 instance Nominal ()
 instance Nominal Bool
-instance Nominal Int where supp _ = mempty
-instance Nominal Word where supp _ = mempty
+instance Nominal Int where
+  _ # _ = True
+  supp _ = mempty
+instance Nominal Word where
+  _ # _ = True
+  supp _ = mempty
 
 --------------------------------------------------------------------------------
 -- * Lifted Nominal Support
