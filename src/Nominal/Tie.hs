@@ -58,23 +58,18 @@ instance Nominal1 Tie where
 -- type NominalLens s t a b = forall p. NominalStrong p => Nom (p a b) (p s t)
 -- type NominalIso s t a b = forall p. NominalProfunctor p => Nom (p a b) (p s t)
 
-ziptie :: (N k, Nominal x, Nominal y) => (Tie x, Tie y) `k` Tie (x, y)
-ziptie = nom_ go where
-  go (Tie a as, Tie b bs) = Tie c (perm (swap c a) as, perm (swap c b) bs) where
+ziptie :: (NI k, Nominal x, Nominal y) => (Tie x, Tie y) `k` Tie (x, y)
+ziptie = niso_ f g where
+  f (Tie a as, Tie b bs) = Tie c (perm (swap c a) as, perm (swap c b) bs) where
     c = fresh (a, b, as, bs)
+  g (Tie a (x,y)) = (Tie a x, Tie a y)
 
-unziptie :: N k => Tie (x, y) `k` (Tie x, Tie y)
-unziptie = nom_ $ \ (Tie a (x,y)) -> (Tie a x, Tie a y)
-
-zipe :: N k => Either (Tie x) (Tie y) `k` Tie (Either x y)
-zipe = nom_ go where
-  go (Left (Tie a as)) = Tie a (Left as)
-  go (Right (Tie a as)) = Tie a (Right as)
-
-unzipe :: N k => Tie (Either x y) `k` Either (Tie x) (Tie y)
-unzipe = nom_ go where
-  go (Tie a (Left as)) = Left (Tie a as)
-  go (Tie a (Right bs)) = Right (Tie a bs)
+coziptie :: NI k => Either (Tie x) (Tie y) `k` Tie (Either x y)
+coziptie = niso_ f g where
+  f (Left (Tie a as)) = Tie a (Left as)
+  f (Right (Tie a as)) = Tie a (Right as)
+  g (Tie a (Left as)) = Left (Tie a as)
+  g (Tie a (Right bs)) = Right (Tie a bs)
 
 delta :: N k => Tie (Tie a) `k` Tie (Tie a)
 delta = nom_ $ \ (Tie a (Tie b x)) -> Tie b (Tie a x)
@@ -117,12 +112,7 @@ pi1 = nom_ $ \ (Untie x _) -> x
 pi2 :: (N k, Nominal x) => k (Untie x) Atom
 pi2 = nom_ $ \ (Untie _ a) -> a
 
--- @
--- hither . yon = id
--- yon . hither = id
--- @
-hither :: (N k, Permutable x) => Untie (Tie x) `k` (Atom, x)
-hither = nom_ $ \(Untie (Tie a x) a') -> (a', perm (swap a' a) x)
-
-yon :: N k => (Atom, x) `k` Untie (Tie x)
-yon = nom_ $ \(a, x) -> Untie (Tie a x) a
+paired :: (NI k, Permutable x) => Untie (Tie x) `k` (Atom, x)
+paired = niso_ f g where
+  f (Untie (Tie a x) a') = (a', perm (swap a' a) x)
+  g (a, x) = Untie (Tie a x) a
