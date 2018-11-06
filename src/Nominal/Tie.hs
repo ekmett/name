@@ -27,7 +27,6 @@ import GHC.Generics
 import Nominal.Atom
 import Nominal.Category
 import Nominal.Class
-import Nominal.Permutation
 import Nominal.Support
 
 -- tie is a fully faithful functor from Nom -> Nom
@@ -37,7 +36,7 @@ data Tie a = Tie !Atom a
   deriving (Show, Functor, Foldable, Traversable)
 
 instance (Eq a, Nominal a) => Eq (Tie a) where
-  Tie a as == Tie b bs = perm (swap c a) as == perm (swap c b) bs where
+  Tie a as == Tie b bs = trans c a as == trans c b bs where
     c = fresh (a, b, as, bs)
 
 instance Permutable a => Permutable (Tie a) where
@@ -62,7 +61,7 @@ instance Nominal1 Tie where
 
 ziptie :: (NI k, Nominal x, Nominal y) => (Tie x, Tie y) `k` Tie (x, y)
 ziptie = niso_ f g where
-  f (Tie a as, Tie b bs) = Tie c (perm (swap c a) as, perm (swap c b) bs) where
+  f (Tie a as, Tie b bs) = Tie c (trans c a as, trans c b bs) where
     c = fresh (a, b, as, bs)
   g (Tie a (x,y)) = (Tie a x, Tie a y)
 
@@ -97,7 +96,7 @@ unit :: (N k, Nominal y) => y `k` Tie (Untie y)
 unit = nom_ $ \ y -> let a = fresh (supp y) in Tie a (Untie y a)
 
 counit :: (N k, Permutable a) => Untie (Tie a) `k` a
-counit = nom_ $ \(Untie (Tie d a) c) -> perm (swap c d) a
+counit = nom_ $ \(Untie (Tie d a) c) -> trans c d a
 
 leftAdjunct :: (N k, Nominal y) => k (Untie y) x -> k y (Tie x)
 leftAdjunct = nar $ \f y ->
@@ -106,7 +105,7 @@ leftAdjunct = nar $ \f y ->
 
 rightAdjunct :: (N k, Permutable x) => k y (Tie x) -> k (Untie y) x
 rightAdjunct = nar $ \f (Untie y c) -> case f y of
-  Tie d x -> perm (swap c d) x
+  Tie d x -> trans c d x
 
 pi1 :: (N k, Nominal x) => k (Untie x) x
 pi1 = nom_ $ \ (Untie x _) -> x
@@ -116,5 +115,5 @@ pi2 = nom_ $ \ (Untie _ a) -> a
 
 paired :: (NI k, Permutable x) => Untie (Tie x) `k` (Atom, x)
 paired = niso_ f g where
-  f (Untie (Tie a x) a') = (a', perm (swap a' a) x)
+  f (Untie (Tie a x) a') = (a', trans a' a x)
   g (a, x) = Untie (Tie a x) a
