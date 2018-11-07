@@ -24,11 +24,13 @@ module Nominal.Category where
 import Control.Applicative (Applicative(..), Alternative(..))
 import qualified Control.Arrow as Arrow
 import Control.Category
+import Control.Monad (guard)
 import GHC.Exts
 import GHC.Generics
 import Data.Kind
 import Data.Void
 import Nominal.Atom
+import Nominal.Binding
 import Nominal.Class
 import Nominal.Support
 import qualified Prelude
@@ -525,8 +527,15 @@ data Tensor v a = Tensor v a -- v should be 'invisible' within Nom, I give no No
 
 instance Permutable a => Permutable (Tensor v a) where
   trans i j (Tensor v a) = Tensor v (trans i j a)
+  {-# inline trans #-}
   perm p (Tensor v a) = Tensor v (perm p a) -- v many copies of a?
   {-# inline perm #-}
+
+instance Permutable1 (Tensor v) where
+  trans1 f i j (Tensor v a) = Tensor v (f i j a)
+  {-# inline trans1 #-}
+  perm1 f p (Tensor v a) = Tensor v (f p a) -- v many copies of a?
+  {-# inline perm1 #-}
 
 instance Nominal a => Nominal (Tensor v a) where
   a # Tensor _ b = a # b
@@ -537,6 +546,22 @@ instance Nominal a => Nominal (Tensor v a) where
   {-# inline supply #-}
   equiv (Tensor _ a) = equiv a
   {-# inline equiv #-}
+
+instance Nominal1 (Tensor v) where
+  supp1 f (Tensor _ a) = f a
+  {-# inline supp1 #-}
+
+instance (Eq a, Binding b) => Binding (Tensor a b) where
+  binding (Tensor a b) (Tensor c d) = guard (a == c) *> binding b d
+  {-# inline binding #-}
+  bv (Tensor _ b) = bv b
+  {-# inline bv #-}
+
+instance Eq a => Binding1 (Tensor a) where
+  binding1 f (Tensor a b) (Tensor c d) = guard (a == c) *> f b d
+  {-# inline binding1 #-}
+  bv1 f (Tensor _ b) = f b
+  {-# inline bv1 #-}
 
 class Cartesian k => FinitelyTensored k where -- only needs closed monoidal
   mapTensor :: k a b -> k (v ⊙ a) (v ⊙ b)
@@ -559,8 +584,8 @@ instance FinitelyTensored (->) where
   untensor f (Tensor v a) = f v a
   {-# inline untensor #-}
 
-type (⫛) = Power
 data Power v a = Power { runPower :: v -> a } deriving Functor
+type (⫛) = Power
 
 instance (Finite v, Eq a) => Eq (Power v a) where
   Power f == Power g = fmap f every == fmap g every
@@ -571,6 +596,10 @@ instance Permutable a => Permutable (Power v a) where
   perm p (Power f) = Power (perm p . f)
   {-# inline perm #-}
 
+instance Permutable1 (Power v) where
+  trans1 f i j (Power g) = Power (f i j . g)
+  perm1 f p (Power g) = Power (f p . g)
+
 instance (Finite v, Nominal a) => Nominal (Power v a) where
   a # Power f = Prelude.all ((a #) . f) every
   {-# inline (#) #-}
@@ -579,6 +608,34 @@ instance (Finite v, Nominal a) => Nominal (Power v a) where
   -- default supply -- could this be better if i computed sups off of each support instead?
   equiv (Power f) b c = Prelude.all (\ v -> equiv (f v) b c) every
   {-# inline equiv #-}
+
+instance Finite v => Nominal1 (Power v) where
+  supp1 f (Power g) = foldMap (f . g) every
+  {-# inline supp1 #-}
+
+newtype Applied f a = Applied { getApplied :: f a }
+instance (Applicative f, Semigroup a) => Semigroup (Applied f a) where Applied m <> Applied n = Applied $ liftA2 (<>) m n
+instance (Applicative f, Monoid a) => Monoid (Applied f a) where mempty = Applied $ pure mempty
+
+instance (Finite a, Binding b) => Binding (Power a b) where
+  binding (Power f) (Power g) = getApplied $ foldMap (\x -> Applied $ binding (f x) (g x)) every
+  {-# inline binding #-}
+  bv (Power f) = foldMap (bv . f) every
+  {-# inline bv #-}
+
+instance Finite a => Binding1 (Power a) where
+  binding1 f (Power g) (Power h) = getApplied $ foldMap (\x -> Applied $ f (g x) (h x)) every
+  {-# inline binding1 #-}
+  bv1 g (Power f) = foldMap (g . f) every
+  {-# inline bv1 #-}
+
+instance (Finite a, Irrefutable b) => Irrefutable (Power a b) where
+  match (Power f) (Power g) = foldMap (\x -> match (f x) (g x)) every
+  {-# inline match #-}
+
+instance Finite a => Irrefutable1 (Power a) where
+  match1 f (Power g) (Power h) = foldMap (\x -> f (g x) (h x)) every
+  {-# inline match1 #-}
 
 class Cartesian k => FinitelyPowered k where
   mapPower :: k a b -> k (v ⫛ a) (v ⫛ b)

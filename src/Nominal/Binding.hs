@@ -107,15 +107,18 @@ instance Irrefutable Atom where
 
 instance Irrefutable Void where
   match = absurd
+
 instance Irrefutable () where
   match _ _ = mempty
+
 instance (Irrefutable a, Irrefutable b) => Irrefutable (a, b) where
   match (a,b) (c,d) = match a c <> match b d
+
 instance (Irrefutable a, Irrefutable b, Irrefutable c) => Irrefutable (a, b, c) where
   match (a,b,c) (d,e,f) = match a d <> match b e <> match c f
+
 instance (Irrefutable a, Irrefutable b, Irrefutable c, Irrefutable d) => Irrefutable (a, b, c, d) where
   match (a,b,c,d) (e,f,g,h) = match a e <> match b f <> match c g <> match d h
--- powers and tensors?
 
 class Binding1 f => Irrefutable1 f where
   match1 :: (a -> a -> Permutation) -> f a -> f a -> Permutation
