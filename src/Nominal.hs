@@ -18,7 +18,6 @@ module Nominal
   , module Nominal.Permutation
   , module Nominal.Set
   , module Nominal.Support
-  , module Nominal.Supported
   , module Nominal.Suspension
   , module Nominal.Tie
   , Map
@@ -33,6 +32,5 @@ import Nominal.Map
 import Nominal.Permutation
 import Nominal.Set
 import Nominal.Support
-import Nominal.Supported
 import Nominal.Suspension
 import Nominal.Tie

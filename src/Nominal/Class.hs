@@ -57,7 +57,7 @@ import Nominal.Internal.Permutation
 import Nominal.Set as Set
 import Nominal.Permutation
 import Nominal.Support
-import Nominal.Supported
+import Nominal.Lattice
 import Nominal.Logic
 import Prelude hiding (elem)
 
@@ -227,6 +227,26 @@ data Stream = Atom :- Stream
 instance Permutable Stream where
   trans i j (a :- as) = trans i j a :- trans i j as
   perm p (a :- as) = perm p a :- perm p as
+
+--------------------------------------------------------------------------------
+-- * Supported
+--------------------------------------------------------------------------------
+
+newtype Supported a = Supported { getSupported :: a -> Support }
+
+instance Contravariant Supported where
+  contramap f (Supported g) = Supported (g . f)
+
+instance Divisible Supported where
+  conquer = Supported $ \_ -> top
+  divide f (Supported g) (Supported h) = Supported $ \a -> case f a of
+    (b, c) -> g b ∧ h c
+
+instance Decidable Supported where
+  lose f = Supported $ absurd . f
+  choose f (Supported g) (Supported h) = Supported $ \a -> case f a of
+    Left b -> g b
+    Right c -> h c
 
 --------------------------------------------------------------------------------
 -- * Nominal

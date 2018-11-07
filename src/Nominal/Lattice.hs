@@ -26,8 +26,6 @@ import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
 import Data.Void
 
-infixr 5 ∨
-
 --------------------------------------------------------------------------------
 -- * Join Semilattices
 --------------------------------------------------------------------------------
@@ -36,6 +34,11 @@ class Join a where
   (∨) :: a -> a -> a
   default (∨) :: Semigroup a => a -> a -> a
   (∨) = (<>)
+
+(\/) :: Join a => a -> a -> a
+(\/) = (∨)
+
+infixr 5 ∨, \/
 
 instance Join Void
 
@@ -102,6 +105,11 @@ instance Join a => BoundedJoin (Maybe a) where
 class Meet a where
   (∧) :: a -> a -> a
 
+(/\) :: Meet a => a -> a -> a
+(/\) = (∧)
+
+infixr 7 ∧, /\
+
 instance Meet () where
   _ ∧ _  = ()
 
@@ -154,7 +162,6 @@ instance BoundedMeet a => BoundedMeet (Maybe a) where
 -- * Distributive Lattices
 --------------------------------------------------------------------------------
 
-infixr 7 ∧
 -- | Distributive lattice
 -- @
 -- x ∧ (y ∨ z) = (x ∧ y) ∨ (x ∧ z).
@@ -256,6 +263,11 @@ class PartialOrder t where
   (⊆) :: t -> t -> Bool
   default (⊆) :: Ord t => t -> t -> Bool
   (⊆) = (<=)
+
+le :: PartialOrder t => t -> t -> Bool
+le = (⊆)
+
+infix 4 ⊆, `le`
 
 instance PartialOrder ()
 
