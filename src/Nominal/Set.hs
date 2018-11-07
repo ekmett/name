@@ -40,6 +40,7 @@ instance Monoid Set where
   mempty = Set Empty
 
 instance Join Set
+
 instance BoundedJoin Set
 
 instance Meet Set where
@@ -56,6 +57,7 @@ instance AsEmpty Set where
     x -> Left x
 
 type instance Index Set = Atom
+
 instance Contains Set where
   contains a f (Set e) = Set <$> at a (fmap guard . f . isJust) e where
 

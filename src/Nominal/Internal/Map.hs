@@ -29,7 +29,7 @@ import Nominal.Support
 -- maps from atoms to values, contains a memoized approximate support
 data Map a = Map !Support !(Trie a)
 
--- nominal
+-- equivariant
 union :: NominalSemigroup a => Map a -> Map a -> Map a
 union (Map s0a t0a) (Map s0b t0b) = Map (s0a <> s0b) (t0a <> t0b) where
 
@@ -40,45 +40,46 @@ instance NominalSemigroup a => Monoid (Map a) where
   mempty = Map mempty Empty
 
 instance NominalSemigroup a => NominalSemigroup (Map a)
+
 instance NominalSemigroup a => NominalMonoid (Map a)
 
--- requires a nominal morphism, if so, nominal
+-- requires a equivariant morphism, if so, equivariant
 intersectionWith :: (a -> b -> c) -> Map a -> Map b -> Map c
 intersectionWith f (Map s0 t0) (Map s1 t1) = case Trie.intersectionWith f t0 t1 of
   Empty -> Map mempty Empty
   t     -> Map (s0 <> s1) t
 
--- nominal
+-- equivariant
 intersection :: Map a -> Map a -> Map a
 intersection (Map s0 t0) (Map _ t1) = case Trie.intersection t0 t1 of
   Empty -> Map mempty Empty
   t     -> Map s0 t
 
--- nominal
+-- equivariant
 diff :: Nominal s => Map a -> s -> Map a
 diff (Map s0 t0) (supp -> Supp t1) = case Trie.diff t0 t1 of
   Empty -> Map mempty Empty
   t -> Map s0 t
 
--- nominal
+-- equivariant
 (\\) :: Nominal s => Map a -> s -> Map a
 (\\) = diff
 
--- nominal
+-- equivariant
 lookup :: Atom -> Map a -> Maybe a
 lookup i (Map _ t) = Trie.lookup i t
 
--- nominal
+-- equivariant
 delete :: Atom -> Map a -> Map a
 delete i (Map s0 t0) = case Trie.delete i t0 of
   Empty -> Map mempty Empty
   t -> Map s0 t
 
--- nominal
+-- equivariant
 insert :: Nominal a => Atom -> a -> Map a -> Map a
 insert v a (Map s t) = Map (supp v <> supp a <> s) $ Trie.insert v a t
 
--- nominal
+-- equivariant
 singleton :: Nominal a => Atom -> a -> Map a
 singleton v a = Map (supp v <> supp a) (Trie.singleton v a)
 
@@ -97,7 +98,7 @@ instance AsEmpty (Map a) where
     Map _ Empty -> Right ()
     t           -> Left t
 
--- nominal, clean up the cached support
+-- equivariant, clean up the cached support
 trim :: Nominal a => Map a -> Map a
 trim (Map _ t0) = Map (Supp (() <$ t0) <> foldMap supp t0) t0
 
