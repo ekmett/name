@@ -1,4 +1,5 @@
 {-# language DeriveTraversable #-}
+{-# language ViewPatterns #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -15,7 +16,6 @@ module Nominal.Suspension where
 import Nominal.Class
 import Nominal.Permutation
 
--- semi-direct product of a permutation and a nominal monoid
 data Suspended a = Suspended Permutation a
   deriving (Functor, Foldable, Traversable)
 
@@ -35,11 +35,13 @@ instance Nominal a => Nominal (Suspended a) where
   a # Suspended q b = perm (inv q) a # b
   supp (Suspended q a) = perm q (supp a)
   supply (Suspended q b) = perm q (supply b)
-  equiv (Suspended q b) i j = equiv b (perm p i) (perm p j) where p = inv q -- can we simplify?
+  equiv (Suspended (inv -> p) b) i j = equiv b (perm p i) (perm p j)
 
+-- | semi-direct product of a finite permutation and a nominal semigroup
 instance NominalSemigroup a => Semigroup (Suspended a) where
   Suspended p a <> Suspended q b = Suspended (p <> q) (a <> perm p b)
 
+-- | semi-direct product of a finite permutation and a nominal monoid
 instance NominalMonoid a => Monoid (Suspended a) where
   mempty = Suspended mempty mempty
 
