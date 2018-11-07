@@ -30,7 +30,6 @@ import GHC.Generics
 import Data.Kind
 import Data.Void
 import Nominal.Atom
-import Nominal.Binding
 import Nominal.Class
 import Nominal.Support
 import qualified Prelude

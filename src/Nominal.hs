@@ -10,7 +10,6 @@
 
 module Nominal
   ( module Nominal.Atom
-  , module Nominal.Binding
   , module Nominal.Category
   , module Nominal.Class
   , module Nominal.Lattice
@@ -26,7 +25,6 @@ module Nominal
   ) where
 
 import Nominal.Atom
-import Nominal.Binding
 import Nominal.Category
 import Nominal.Class
 import Nominal.Lattice

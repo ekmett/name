@@ -51,7 +51,6 @@ library
     Nominal.Internal.Trie
     Nominal.Internal.Permutation
     Nominal.Atom
-    Nominal.Binding
     Nominal.Category
     Nominal.Class
     Nominal.Lattice

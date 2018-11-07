@@ -24,7 +24,6 @@ module Nominal.Tie where
 
 import GHC.Generics
 import Nominal.Atom
-import Nominal.Binding
 import Nominal.Category
 import Nominal.Class
 import Nominal.Lattice
