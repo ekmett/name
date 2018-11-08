@@ -150,6 +150,11 @@ instance Permutable (Proxy a)
 instance Permutable Void
 instance Permutable ()
 instance Permutable Bool
+instance Permutable Char where
+  trans _ _ = id
+  {-# inline trans #-}
+  perm _ = id
+  {-# inline perm #-}
 instance Permutable Int where
   trans _ _ = id
   {-# inline trans #-}
@@ -342,12 +347,20 @@ instance Nominal Void where
   (#) _ = absurd
 
 instance Nominal ()
+
 instance Nominal Bool where
   equiv _ _ _ = True
+
 instance Nominal Int where
   equiv _ _ _ = True
   _ # _ = True
   supp _ = mempty
+
+instance Nominal Char where
+  equiv _ _ _ = True
+  _ # _ = True
+  supp _ = mempty
+
 instance Nominal Word where
   equiv _ _ _ = True
   _ # _ = True
@@ -609,6 +622,10 @@ instance Binding Int where
   bv = mempty
 
 instance Binding Bool where
+  binding a b = mempty <$ guard (a == b)
+  bv = mempty
+
+instance Binding Char where
   binding a b = mempty <$ guard (a == b)
   bv = mempty
 

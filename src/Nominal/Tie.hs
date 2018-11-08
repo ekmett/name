@@ -132,7 +132,7 @@ rightAdjunct :: (N k, Permutable b, Irrefutable c) => k a (c ⊸ b) -> k (a ∙ 
 rightAdjunct = nar $ \f (Untie y c) -> case f y of
   Tie d x -> perm (match c d) x
 
-paired :: (NI k, Permutable a) => ((Atom ⊸ a) ∙ Atom) `k` (Atom, a)
+paired :: (NI k, Permutable a) => k ((Atom ⊸ a) ∙ Atom) (Atom, a)
 paired = niso_ f g where
   f (Untie (Tie a x) a') = (a', trans a' a x)
   g (a, x) = Untie (Tie a x) a
