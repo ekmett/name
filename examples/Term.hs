@@ -1,3 +1,4 @@
+{-# language DeriveAnyClass #-}
 {-# language DeriveGeneric #-}
 {-# language LambdaCase #-}
 
@@ -23,10 +24,7 @@ data Term
   = Var !Atom
   | App !Term !Term
   | Lam !(Tie Atom Term)
-  deriving (Eq, Generic)
-
-instance Permutable Term
-instance Nominal Term
+  deriving (Eq, Generic, Permutable, Nominal)
 
 subst :: N k => k Atom Term -> k Term Term
 subst = nar $ \f -> \case
