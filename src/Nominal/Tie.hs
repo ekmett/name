@@ -6,6 +6,7 @@
 {-# language FlexibleContexts #-}
 {-# language DefaultSignatures #-}
 {-# language PatternSynonyms #-}
+{-# language ViewPatterns #-}
 {-# language GeneralizedNewtypeDeriving #-}
 {-# language DeriveGeneric #-}
 {-# language DeriveTraversable #-}
@@ -25,6 +26,7 @@ module Nominal.Tie where
 import GHC.Generics
 import Nominal.Atom
 import Nominal.Category
+import qualified Nominal.Internal.Trie as Trie
 import Nominal.Class
 import Nominal.Lattice
 import Nominal.Set
@@ -40,10 +42,11 @@ instance (Eq a, Binding a, Eq b, Nominal b) => Eq (Tie a b) where
     | a == b = as == bs
     | otherwise = case binding a b of
       Nothing -> False
-      Just p   -> sep bs (bv a \\ bv b) && as == perm p bs
+      Just p  -> sep bs (bv a \\ bv b) && as == perm p bs
 
 sep :: Nominal a => a -> Set -> Bool
-sep = undefined
+sep (supp -> Supp s) (Set t) = Trie.disjoint s t
+{-# inline sep #-}
 
 instance (Permutable a, Permutable b) => Permutable (Tie a b) where
   trans i j (Tie a b) = Tie (trans i j a) (trans i j b)

@@ -20,26 +20,20 @@
 ---------------------------------------------------------------------------------
 
 module Nominal.Class
-( Permutable(..)
-, Permutable1(..)
-, Nominal(..)
-, Nominal1(..)
+( Permutable(..), Permutable1(..)
+, Nominal(..), Nominal1(..)
 , Stream(..)
-, Fresh(..)
-, Fresh1(..)
-, fresh
+, Fresh(..), Fresh1(..), fresh
 -- , (#), support
-, NominalSemigroup
-, NominalMonoid
+, NominalSemigroup, NominalMonoid
 -- * Generics
-, GPermutable, transgen, permgen
-, GPermutable1
+, GPermutable, GPermutable1, transgen, permgen
 -- * Binding
+, Binding(..), Binding1(..)
+, Irrefutable(..), Irrefutable1(..)
+-- * Internals
+, Supported(..)
 , Binder(..)
-, Binding(..)
-, Binding1(..)
-, Irrefutable(..)
-, Irrefutable1(..)
 ) where
 
 import Control.Monad
