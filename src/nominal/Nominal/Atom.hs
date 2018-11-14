@@ -10,6 +10,24 @@
 
 module Nominal.Atom
 ( Atom
+, AsAtom(..)
+, HasAtom(..)
 ) where
 
+import Control.Lens
 import Nominal.Internal.Trie
+
+class AsAtom t where
+  _Atom :: Prism' t Atom
+
+instance AsAtom Atom where
+  _Atom = id
+
+instance AsAtom a => AsAtom (Maybe a) where
+  _Atom = _Just._Atom
+
+class HasAtom t where
+  atom :: Lens' t Atom
+
+instance HasAtom Atom where
+  atom = id

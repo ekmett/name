@@ -17,6 +17,7 @@ module Nominal
   -- , module Nominal.Map -- designed for qualified import
   , module Nominal.Permutation
   , module Nominal.Set
+  , module Nominal.Substitution
   , module Nominal.Support
   , module Nominal.Suspension
   , module Nominal.Tie
@@ -30,7 +31,8 @@ import Nominal.Lattice
 import Nominal.Logic
 import Nominal.Map
 import Nominal.Permutation
-import Nominal.Set
+import Nominal.Set hiding (foldr)
+import Nominal.Substitution
 import Nominal.Support
 import Nominal.Suspension
 import Nominal.Tie

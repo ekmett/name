@@ -34,6 +34,10 @@ import Unsafe.Coerce
 data Set where
   Set :: Trie a -> Set
 
+foldr :: (Atom -> r -> r) -> r -> Set -> r
+foldr f z (Set t) = ifoldr (\i _ r -> f i r) z t
+{-# inline foldr #-}
+
 instance Eq Set where
   Set x == Set y = liftEq (\_ _ -> True) x y
 
@@ -45,7 +49,7 @@ instance Show Set where
 
 instance IsList Set where
   type Item Set = Atom
-  fromList = foldr insert mempty
+  fromList = Prelude.foldr insert mempty
   toList (Set xs) = ifoldr (\i _ r -> i:r) [] xs
   
 instance PartialOrder Set where

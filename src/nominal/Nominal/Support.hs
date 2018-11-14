@@ -77,7 +77,7 @@ instance Meet Support where
     go (x:xs) ys = go1 x xs ys
     go1 x xs ys = case List.partition (Set.disjoint x) ys of
       (_, []) -> x : go xs ys
-      (ys', foldr (∨) x -> x') -> go1 x' ys' xs
+      (ys', Prelude.foldr (∨) x -> x') -> go1 x' ys' xs
 
 -- joins compute finer grained supports on a set of elements
 instance Join Support where

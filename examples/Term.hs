@@ -1,6 +1,8 @@
 {-# language DeriveAnyClass #-}
 {-# language DeriveGeneric #-}
+{-# language TypeOperators #-}
 {-# language LambdaCase #-}
+{-# language MultiParamTypeClasses #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -14,6 +16,7 @@
 
 module Term where
 
+import Control.Lens
 import GHC.Generics
 import Nominal
 import Nominal.Category
@@ -24,10 +27,15 @@ data Term
   = Var !Atom
   | App !Term !Term
   | Lam !(Atom ⊸ Term)
-  deriving (Eq, Generic, Permutable, Nominal)
+  deriving (Eq, Show, Generic, Permutable, Nominal)
 
-subst :: N k => k Atom Term -> k Term Term
-subst = nar $ \f -> \case
-  Var a -> f a
-  App l r -> App (subst f l) (subst f r)
-  Lam t -> Lam (subst f <$> t)
+instance Subst Term Atom where
+  subst _ e = e
+
+instance AsAtom Term where
+  _Atom = prism Var $ \case
+    Var v -> Right v
+    x -> Left x
+
+substTerm :: Map Term -> Term -> Term
+substTerm = subst 
