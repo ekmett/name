@@ -2,6 +2,10 @@
 {-# language LambdaCase #-}
 {-# language DeriveAnyClass #-}
 {-# language StrictData #-}
+{-# language TypeOperators #-}
+{-# language MultiParamTypeClasses #-}
+{-# language FlexibleInstances #-}
+{-# language UndecidableInstances #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -15,6 +19,7 @@
 
 module Pat where
 
+import Control.Lens (prism)
 import GHC.Generics
 import Nominal
 import Nominal.Category
@@ -28,28 +33,48 @@ data Pat
   | PVar Atom
   | PCon Con [Pat]
   | PLit Int
-  deriving (Eq, Generic, Permutable, Nominal, Binding)
+  deriving (Show, Eq, Generic, Permutable, Nominal, Binding)
+
+instance AsAtom Pat where
+  _Atom = prism PVar $ \case
+    PVar v -> Right v
+    x -> Left x
 
 data Sig a b = a ::: b
-  deriving (Eq, Generic, Permutable, Nominal, Permutable1, Nominal1) 
+  deriving (Show, Eq, Generic, Generic1, Permutable, Nominal, Permutable1, Nominal1)
 
-instance (Binding a, Eq b) => Binding (Sig a b) where
+instance (Binding a, Nominal b, Eq b) => Binding (Sig a b) where
   binding (a ::: b) (c ::: d) | b == d = binding a c
   binding _ _ = Nothing
+  bv (a ::: b) = bv a
+
+instance (Subst e a, Subst e b) => Subst e (Sig a b)
 
 data Kind
-  = KType
+  = KVar Atom
+  | KType
   | KHole
   | KArr Kind Kind
-  deriving (Eq, Generic, Permutable, Nominal)
+  deriving (Show, Eq, Generic, Permutable, Nominal)
+
+instance AsAtom Kind where
+  _Atom = prism KVar $ \case
+    KVar v -> Right v
+    x -> Left x
 
 data Type
-  = TInt
+  = TVar Atom
+  | TInt
   | TArr Type Type
   | TCon Con [Type]
   | THole
   | TForall (Sig Atom Kind ⊸ Type)
-  deriving (Eq, Generic, Permutable, Nominal)
+  deriving (Show, Eq, Generic, Permutable, Nominal)
+
+instance AsAtom Type where
+  _Atom = prism TVar $ \case
+    TVar v -> Right v
+    x -> Left x
 
 data Term
   = Var Atom
@@ -57,10 +82,24 @@ data Term
   | Lam (Pat ⊸ Term)
   | Let (Sig Atom Type ⊸ Term) Term
   | Case Term [Pat ⊸ Term]
-  deriving (Eq, Generic, Permutable, Nominal)
+  deriving (Show, Eq, Generic, Permutable, Nominal)
 
-subst :: N k => k Atom Term -> k Term Term
-subst = nar $ \f -> \case
-  Var a -> f a
-  App l r -> App (subst f l) (subst f r)
-  Lam t -> Lam (subst f <$> t)
+instance AsAtom Term where
+  _Atom = prism Var $ \case
+    Var v -> Right v
+    x -> Left x
+
+instance Subst Kind Term
+instance Subst Kind Type
+instance Subst Type Term
+instance Subst Kind Atom where subst _ e = e
+instance Nominal e => Subst e Char where subst _ e = e
+instance Nominal e => Subst e Int where subst _ e = e
+instance Subst Type Atom where subst _ e = e
+instance Subst Term Atom where subst _ e = e
+instance Subst Term Kind where subst _ e = e
+instance Subst Kind Pat  where subst _ e = e
+instance Subst Type Pat  where subst _ e = e
+instance Subst Term Pat  where subst _ e = e
+instance Subst Term Type where subst _ e = e
+instance Subst Type Kind where subst _ e = e

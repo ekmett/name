@@ -112,15 +112,14 @@ instance {-# overlappable #-}
   ( AsAtom e
   , Generic e
   , GSubst e (Rep e)
-  , Nominal e -- why?
+  , Nominal e -- why can't this find it via the superclass of GSubst e (Rep e)?
   ) => Subst e e where
   subst = substexp
 
--- handled by substexp
--- instance {-# overlapping #-} Subst Atom Atom where subst m a = fromMaybe a $ Map.lookup a m
+instance {-# overlapping #-} Subst Atom Atom where subst m a = fromMaybe a $ Map.lookup a m
 
 instance (Subst e a, Binding a, Subst e b, Nominal b) => Subst e (Tie a b) where
   subst e (Tie a b)
-    | p <- fst $ Set.foldr step (mempty, fresh (e, a)) (bv a /\ coarsest (supp e))
+    | p <- fst $ Set.foldr step (mempty, fresh (e, a, b)) (bv a /\ coarsest (supp e))
     = Tie (subst e (perm p a)) (subst e (perm p b))
     where step u (x, v :- vs) = (swap u v <> x, vs)
