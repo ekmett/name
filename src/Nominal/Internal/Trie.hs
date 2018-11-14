@@ -55,8 +55,10 @@ import Control.Applicative hiding (empty)
 import Control.Lens
 import Control.Monad
 import Data.Coerce
+import Data.Discrimination.Grouping
 import Data.Foldable
 import Data.Functor.Bind
+import Data.Functor.Classes
 import Data.Maybe
 import qualified Data.Map as Map
 import Data.Map (Map)
@@ -66,12 +68,18 @@ import Numeric.Natural
 import Prelude hiding (lookup, length, foldr)
 
 newtype Atom = A Natural deriving (Eq,Num,Ord) -- Num,Ord only for convenience
+
+-- TODO: lift this into discrimination for Natural/Integer?
+instance Grouping Atom where
+  grouping = contramap coerce (grouping :: Group Natural)
+
 instance Show Atom where
   showsPrec d (A n) = showsPrec d n
 
 newtype Trie v = Trie { runTrie :: Map Atom v } deriving
   ( Eq, Ord, Show
   , Functor, Foldable, Traversable
+  , Eq1, Ord1, Show1
   -- , FunctorWithIndex Atom, FoldableWithIndex Atom, TraversableWithIndex Atom
   -- , Apply, Bind
   )

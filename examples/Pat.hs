@@ -1,6 +1,7 @@
 {-# language DeriveGeneric #-}
 {-# language LambdaCase #-}
 {-# language DeriveAnyClass #-}
+{-# language StrictData #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -24,16 +25,38 @@ type Con = String
 
 data Pat
   = PWild
-  | PVar !Atom
+  | PVar Atom
   | PCon Con [Pat]
-  | PLit !Int
+  | PLit Int
   deriving (Eq, Generic, Permutable, Nominal, Binding)
 
+data Sig a b = a ::: b
+  deriving (Eq, Generic, Permutable, Nominal, Permutable1, Nominal1) 
+
+instance (Binding a, Eq b) => Binding (Sig a b) where
+  binding (a ::: b) (c ::: d) | b == d = binding a c
+  binding _ _ = Nothing
+
+data Kind
+  = KType
+  | KHole
+  | KArr Kind Kind
+  deriving (Eq, Generic, Permutable, Nominal)
+
+data Type
+  = TInt
+  | TArr Type Type
+  | TCon Con [Type]
+  | THole
+  | TForall (Sig Atom Kind ⊸ Type)
+  deriving (Eq, Generic, Permutable, Nominal)
+
 data Term
-  = Var !Atom
-  | App !Term !Term
-  | Lam !(Tie Atom Term)
-  | Case !Term [(Pat, Term)]
+  = Var Atom
+  | App Term Term
+  | Lam (Pat ⊸ Term)
+  | Let (Sig Atom Type ⊸ Term) Term
+  | Case Term [Pat ⊸ Term]
   deriving (Eq, Generic, Permutable, Nominal)
 
 subst :: N k => k Atom Term -> k Term Term

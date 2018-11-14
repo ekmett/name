@@ -33,7 +33,7 @@ permTree (Tree t) a = fromMaybe a $ lookup a t
 
 squareTree :: Tree -> Tree
 squareTree (Tree t) = Tree $ ifilterMap go t where
-  go i j = mfilter (i/=) $ lookup j t
+  go i j = mfilter (i/=) $ lookup j t -- check this
 
 supTree :: Tree -> Maybe Atom
 supTree (Tree t) = sup t

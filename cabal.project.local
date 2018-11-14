@@ -1,9 +1,10 @@
 packages:
-  concat/plugin/concat-plugin.cabal
-  concat/satisfy/concat-satisfy.cabal
-  concat/classes/concat-classes.cabal
-  concat/known/concat-known.cabal
-  concat/inline/concat-inline.cabal
+  concat/plugin/*.cabal
+  concat/satisfy/*.cabal
+  concat/classes/*.cabal
+  concat/known/*.cabal
+  concat/inline/*.cabal
+  discrimination/*.cabal
 package nominal
 --  flags: +concat
 documentation: False

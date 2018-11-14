@@ -23,7 +23,7 @@ import Nominal.Category
 data Term
   = Var !Atom
   | App !Term !Term
-  | Lam !(Tie Atom Term)
+  | Lam !(Atom ⊸ Term)
   deriving (Eq, Generic, Permutable, Nominal)
 
 subst :: N k => k Atom Term -> k Term Term

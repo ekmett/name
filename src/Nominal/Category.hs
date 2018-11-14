@@ -510,7 +510,6 @@ instance Finite Bool
 instance Finite Void where
   every = []
 
-
 instance Finite a => Finite (Maybe a) where
   every = Nothing : (Just <$> every)
 

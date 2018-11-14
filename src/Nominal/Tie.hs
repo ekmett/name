@@ -63,8 +63,6 @@ instance Permutable a => Permutable1 (Tie a) where
 instance (Binding a, Nominal b) => Nominal (Tie a b) where
   a # Tie b x = member a (bv b) || a # x
   {-# inline (#) #-}
-  -- fresh (Tie a b) -- pick a member of bv a, or compute something fresh w.r.t. x, if that is empty
-  -- {-# inline fresh #-}
   supp (Tie a b) = supp b `sans` bv a
   {-# inline supp #-}
 
@@ -89,7 +87,7 @@ delta :: NI k => k (a ⊸ (b ⊸ c)) (b ⊸ (a ⊸ c))
 delta = niso_ (\(Tie a (Tie b c)) -> Tie b (Tie a c)) (\(Tie a (Tie b c)) -> Tie b (Tie a c))
 
 kappa :: (N k, Nominal a, Fresh b) => k a (b ⊸ a)
-kappa = nom_ $ \x -> Tie (fresh $ supp x) x
+kappa = nom_ $ \x -> Tie (fresh x) x
 
 type (∙) = Untie
 
@@ -118,14 +116,14 @@ pi2 = nom_ $ \ (Untie _ b) -> b
 -- this requires a 'fresh', what subset of irrefutable definitions match here?
 
 unit :: (N k, Nominal a, Fresh b) => k a (b ⊸ (a ∙ b))
-unit = nom_ $ \ y -> let a = fresh (supp y) in Tie a (Untie y a)
+unit = nom_ $ \ a -> let b = fresh a in Tie b (Untie a b)
 
 counit :: (N k, Permutable a, Irrefutable b) => k ((b ⊸ a) ∙ b) a
 counit = nom_ $ \(Untie (Tie d a) c) -> perm (match c d) a
 
 leftAdjunct :: (N k, Nominal a, Fresh c) => k (a ∙ c) b -> k a (c ⊸ b)
 leftAdjunct = nar $ \f y ->
-   let a = fresh (supp y)
+   let a = fresh y
    in Tie a (f (Untie y a))
 
 rightAdjunct :: (N k, Permutable b, Irrefutable c) => k a (c ⊸ b) -> k (a ∙ c) b

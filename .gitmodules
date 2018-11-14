@@ -1,3 +1,6 @@
 [submodule "concat"]
 	path = concat
 	url = https://github.com/conal/concat
+[submodule "discrimination"]
+	path = discrimination
+	url = git@github.com:ekmett/discrimination.git

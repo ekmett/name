@@ -7,6 +7,7 @@
 {-# language LambdaCase #-}
 {-# language ConstraintKinds #-}
 {-# language DefaultSignatures #-}
+{-# language GADTs #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -22,19 +23,36 @@ module Nominal.Set where
 
 import Control.Lens
 import Control.Monad (guard)
+import Data.Functor.Classes
 import Data.Maybe (isJust)
+import GHC.Exts (IsList(..))
 import Nominal.Lattice
 import qualified Nominal.Internal.Trie as Trie
 import Nominal.Internal.Trie (Trie, Atom(..))
+import Unsafe.Coerce
 
-newtype Set = Set { getSet :: Trie () }
-  deriving (Eq, Show)
+data Set where
+  Set :: Trie a -> Set
 
+instance Eq Set where
+  Set x == Set y = liftEq (\_ _ -> True) x y
+
+instance Ord Set where
+  Set x `compare` Set y = liftCompare (\_ _ -> EQ) x y
+
+instance Show Set where
+  showsPrec d (Set xs) = showsPrec d $ ifoldr (\i _ r -> i:r) [] xs
+
+instance IsList Set where
+  type Item Set = Atom
+  fromList = foldr insert mempty
+  toList (Set xs) = ifoldr (\i _ r -> i:r) [] xs
+  
 instance PartialOrder Set where
   Set a ⊆ Set b = Trie.isSubtrieOfBy (\_ _ -> True) a b
 
 instance Semigroup Set where
-  Set m <> Set n = Set (Trie.union m n)
+  Set m <> Set n = Set (Trie.union m (unsafeCoerce n)) -- evil
 
 instance Monoid Set where
   mempty = Set Empty
@@ -59,7 +77,9 @@ instance AsEmpty Set where
 type instance Index Set = Atom
 
 instance Contains Set where
-  contains a f (Set e) = Set <$> at a (fmap guard . f . isJust) e where
+  contains a f (Set e) = Set <$> at a (fmap guard' . f . isJust) e where
+    guard' :: Bool -> Maybe a
+    guard' b = undefined <$ guard b
 
 class (Index a ~ Atom, Contains a) => SetLike a where
   insert :: Atom -> a -> a
@@ -85,7 +105,7 @@ infixr 6 +>
 (+>) = insert
 
 instance SetLike Set where
-  insert a (Set t) = Set (Trie.insert a () t)
+  insert a (Set t) = Set (Trie.insert a undefined t)
   delete a (Set t) = Set (Trie.delete a t)
   member a (Set t) = Trie.member a t
   singleton a      = Set (Trie.singleton a ())

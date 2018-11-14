@@ -3,6 +3,8 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -16,52 +18,60 @@
 
 module Nominal.Support where
 
-import Control.Monad.State
 import Control.Lens hiding (set, sets)
 import qualified Data.List as List
-import Data.Map (Map)
-import qualified Data.Map as Map
+import Data.Discrimination.Grouping
+import qualified GHC.Exts as Exts
+import GHC.Generics
 import Data.Void
 import Nominal.Lattice
 import Nominal.Internal.Permutation
 import Nominal.Internal.Trie as Trie
 import Nominal.Set as Set
 
+-- morally, this is Eq a => Trie a -> Support, but we use Ord for efficiency
 data Support where
-  Supp :: Ord a => Trie a -> Support
+  Supp :: (Eq a, Grouping a) => Trie a -> Support
 
 instance Show Support where
   showsPrec d xs = showParen (d > 10) $
      showString "Supp " . showsPrec 11 (canonical xs)
 
--- temp
-set :: Set -> Support
-set (Set s) = Supp s
-
--- the finest support compatible with this support
+-- | the finest support compatible with this support
+-- this is a local top
 finest :: Support -> Support
 finest (Supp xs) = Supp (imap const xs)
 
--- | @coarsest . set = id@
+-- | This is a "local" coarsest for a given set of elements
+--
+-- @coarsest . set = id@
 coarsest :: Support -> Set
 coarsest (Supp xs) = Set (() <$ xs)
 
 permutation :: Permutation -> Support
 permutation (Permutation (Tree t) _) = Supp t
 
+sets :: Support -> [Set]
+sets (Supp t) = Exts.fromList <$> runGroup grouping (ifoldr (\i a r -> (a, i): r) [] t)
+
+{-
 -- internals
+-- this is really inefficient and would be nice to replace.
+-- use discrimination?
 sets :: Support -> [Set]
 sets (Supp t0) = go t0 where
   go t = case preview folded t of
     Nothing -> []
     Just a -> case Trie.partition (a==) t of
       (l, r) -> Set (() <$ l) : go r
+-}
 
 unsets :: [Set] -> Support
-unsets = Supp . ifoldr (\i t r -> Trie.union (i <$ getSet t) r) Empty
+unsets = Supp . ifoldr (\i (Set t) r -> Trie.union (i <$ t) r) Empty
 
-instance Join Support where
-  xs0 ∨ ys0 = unsets $ go (sets xs0) (sets ys0) where
+-- meets compute coarser supports
+instance Meet Support where
+  xs0 ∧ ys0 = unsets $ go (sets xs0) (sets ys0) where
     go _ [] = []
     go [] ys = ys
     go (x:xs) ys = go1 x xs ys
@@ -69,20 +79,31 @@ instance Join Support where
       (_, []) -> x : go xs ys
       (ys', foldr (∨) x -> x') -> go1 x' ys' xs
 
-instance BoundedMeet Support where
-  top = Supp (Empty :: Trie Void)
+-- joins compute finer grained supports on a set of elements
+instance Join Support where
+  Supp xs ∨ Supp ys = Supp $ -- canonical $ Supp $
+    imerge (\_ x y -> Just $ These x y) (fmap This) (fmap That) xs ys
+
+-- bottom is the finest grained support
+instance BoundedJoin Support where
+  bottom = Supp (Empty :: Trie Void)
 
 -- this is a sign that i may have support upside down!
 instance Semigroup Support where
-  (<>) = (∧)
+  (<>) = (∨)
 
 instance Monoid Support where
-  mempty = top
+  mempty = bottom
 
 data These a b = This a | That b | These a b
-  deriving (Eq, Ord, Show)
+  deriving (Generic, Eq, Ord, Show, Grouping)
 
-canonical :: Support -> Trie Int
+flop :: a -> b -> [(b,a)] -> [(b,a)]
+flop k v r = (v,k):r
+
+canonical :: Support -> [[Atom]] -- Trie Int
+canonical (Supp xs) = runGroup grouping $ ifoldr flop [] xs
+{-
 canonical (Supp xs) = evalState (traverse go xs) (0 :: Int, mempty) where
   go :: Ord x => x -> State (Int, Map x Int) Int
   go x = use (_2.at x) >>= \case
@@ -91,13 +112,18 @@ canonical (Supp xs) = evalState (traverse go xs) (0 :: Int, mempty) where
       x' <- _1 <+= 1
       _2.at x ?= x'
       pure x'
+-}
 
 instance PartialOrder Support where
   -- {{x,y},{z},U-{x,y,z}} ⊆ {{x,y},U-{x,y}}
   -- {{x},{y},U-{x,y}} ⊆ {{x,y},U-{x,y}}
   -- But {{x},U-{x}} is not ⊆ {{x,y},U-{x,y}}
-  Supp xs ⊆ Supp ys = cond1 && cond2 where
-    cond1 = null (diff ys xs)
+  Supp xs ⊆ Supp ys = null (diff ys xs)
+                   && all similar (runGroup grouping $ ifoldr flop [] xs) where
+    similar zs = all (\p-> z== ys^.at p) zs where
+      z = ys^.at (head zs)
+
+{-
     cond2 = snd $ execState (itraverse_ go xs) (Map.empty, True)
     -- go :: (Ord x, Ord y) => Atom -> x -> State (Map x (Maybe y), Bool) ()
     go n x = use (_1.at x) >>= \case
@@ -105,16 +131,13 @@ instance PartialOrder Support where
                | otherwise -> _2 .= False
       Nothing -> _1.at x ?= my
       where my = ys^.at n
+-}
 
 instance Eq Support where
   xs == ys = canonical xs == canonical ys
 
-instance Meet Support where
-  Supp xs ∧ Supp ys = Supp $ canonical $ Supp $
-    imerge (\_ x y -> Just $ These x y) (fmap This) (fmap That) xs ys
-
-(↑) :: Support -> Set -> Support
-x ↑ y = x ∨ set y
+-- (↑) :: Support -> Set -> Support
+-- x ↑ y = x ∨ set y
 
 sans :: Support -> Set -> Support
 sans (Supp xs) (Set ys) = Supp (Trie.diff xs ys)

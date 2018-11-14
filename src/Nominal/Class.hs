@@ -38,10 +38,12 @@ module Nominal.Class
 
 import Control.Monad
 import Control.Lens hiding (to, from, (#))
-import qualified Data.Map.Internal as Map
+import Data.Coerce
+import Data.Discrimination.Grouping
 import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
 import Data.Functor.Contravariant.Generic
+import qualified Data.Map.Internal as Map
 import Data.Proxy
 import Data.Void
 import GHC.Generics
@@ -51,7 +53,6 @@ import Nominal.Internal.Permutation
 import Nominal.Set as Set
 import Nominal.Permutation
 import Nominal.Support
-import Nominal.Lattice
 import Nominal.Logic
 import Prelude hiding (elem)
 
@@ -237,9 +238,9 @@ instance Contravariant Supported where
   contramap f (Supported g) = Supported (g . f)
 
 instance Divisible Supported where
-  conquer = Supported $ \_ -> top
+  conquer = Supported $ \_ -> mempty
   divide f (Supported g) (Supported h) = Supported $ \a -> case f a of
-    (b, c) -> g b ∧ h c
+    (b, c) -> g b <> h c
 
 instance Decidable Supported where
   lose f = Supported $ absurd . f
@@ -328,9 +329,21 @@ instance Nominal Atom where
   (#) = (/=)
   supp a = Supp (Trie.singleton a ())
 
+newtype Blind a = Blind a
+instance Eq (Blind a) where _ == _ = True
+instance Ord (Blind a) where compare _ _ = EQ
+instance Grouping (Blind a) where grouping = conquer
+
+
+
 instance Nominal Set where
   a # s = not (Set.member a s)
-  supp (Set s) = Supp s
+  supp (Set s) = Supp (go s) where
+    go :: Trie a -> Trie (Blind a)
+    go = coerce
+    _ignore :: a -> Blind a 
+    _ignore = Blind
+   
   equiv s i j = Set.member i s == Set.member j s
 
 instance (Nominal a, Nominal b) => Nominal (a, b)
