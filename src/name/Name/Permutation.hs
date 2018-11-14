@@ -14,7 +14,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Permutation
+module Name.Permutation
 ( Permutation
 , swap -- generator
 , rcycles, cycles, cyclic, reassemble -- traditional presentation
@@ -28,8 +28,8 @@ import Control.Lens
 import Control.Monad
 import Data.Bits
 import Data.List (groupBy, sort)
-import Nominal.Internal.Trie
-import Nominal.Internal.Permutation
+import Name.Internal.Trie
+import Name.Internal.Permutation
 import Prelude hiding (elem, lookup)
 
 -- nominal

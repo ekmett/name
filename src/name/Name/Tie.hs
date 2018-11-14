@@ -21,16 +21,16 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Tie where
+module Name.Tie where
 
 import GHC.Generics
-import Nominal.Atom
-import Nominal.Category
-import qualified Nominal.Internal.Trie as Trie
-import Nominal.Class
-import Nominal.Lattice
-import Nominal.Set
-import Nominal.Support
+import Name.Atom
+import Name.Category
+import qualified Name.Internal.Trie as Trie
+import Name.Class
+import Name.Lattice
+import Name.Set
+import Name.Support
 
 type (⊸) = Tie
 

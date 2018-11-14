@@ -32,7 +32,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Internal.Trie
+module Name.Internal.Trie
 {-
   ( Trie
   , singleton

@@ -2,5 +2,5 @@
 - ignore: {name: "Use infix"}
 - ignore: {name: "Use const"}
 - ignore: {name: "Parse error"}
-- ignore: {name: "Use curry", within: [ Nominal.Category ]}
-- ignore: {name: "Use uncurry", within: [ Nominal.Category ]}
+- ignore: {name: "Use curry", within: [ Name.Category ]}
+- ignore: {name: "Use uncurry", within: [ Name.Category ]}

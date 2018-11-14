@@ -5,6 +5,6 @@ packages:
   concat/known/*.cabal
   concat/inline/*.cabal
   discrimination/*.cabal
-package nominal
+package name
 --  flags: +concat
 documentation: False

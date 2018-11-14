@@ -21,8 +21,7 @@ module Pat where
 
 import Control.Lens (prism)
 import GHC.Generics
-import Nominal
-import Nominal.Category
+import Name
 
 -- Eq automatically respects alpha-equivalence of bound terms
 

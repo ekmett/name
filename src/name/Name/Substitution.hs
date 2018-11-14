@@ -6,7 +6,7 @@
 {-# language MultiParamTypeClasses #-}
 {-# language UndecidableInstances #-}
 
-module Nominal.Substitution
+module Name.Substitution
 ( Subst(..), substgen, substexp, GSubst
 , Subst1(..), subst1gen, GSubst1
 ) where
@@ -14,14 +14,14 @@ module Nominal.Substitution
 import Control.Lens hiding (to, from)
 import Data.Maybe
 import GHC.Generics
-import Nominal.Atom
-import Nominal.Class
-import Nominal.Lattice
-import Nominal.Map as Map
-import Nominal.Permutation
-import Nominal.Set as Set
-import Nominal.Support
-import Nominal.Tie
+import Name.Atom
+import Name.Class
+import Name.Lattice
+import Name.Map as Map
+import Name.Permutation
+import Name.Set as Set
+import Name.Support
+import Name.Tie
 
 -- TODO: fuse the 'perm' call into 'subst'
 -- TODO: use the 'Shared' trick from ermine or the pointer check from containers to increase term sharing.

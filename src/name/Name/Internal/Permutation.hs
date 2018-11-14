@@ -16,12 +16,12 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Internal.Permutation where
+module Name.Internal.Permutation where
 
 import Control.Lens
 import Control.Monad
 import Data.Maybe
-import Nominal.Internal.Trie
+import Name.Internal.Trie
 import Prelude hiding (elem, lookup)
 import Data.Semigroup (Semigroup(..))
 

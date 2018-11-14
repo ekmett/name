@@ -11,10 +11,10 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Suspension where
+module Name.Suspension where
 
-import Nominal.Class
-import Nominal.Permutation
+import Name.Class
+import Name.Permutation
 
 data Suspended a = Suspended Permutation a
   deriving (Functor, Foldable, Traversable)

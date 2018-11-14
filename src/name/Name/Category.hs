@@ -19,7 +19,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Category where
+module Name.Category where
 
 import Control.Applicative (Applicative(..), Alternative(..))
 import qualified Control.Arrow as Arrow
@@ -29,9 +29,9 @@ import GHC.Exts
 import GHC.Generics
 import Data.Kind
 import Data.Void
-import Nominal.Atom
-import Nominal.Class
-import Nominal.Support
+import Name.Atom
+import Name.Class
+import Name.Support
 import qualified Prelude
 import Prelude
   ( Either(..)

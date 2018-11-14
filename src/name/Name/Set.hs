@@ -19,16 +19,16 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Set where
+module Name.Set where
 
 import Control.Lens
 import Control.Monad (guard)
 import Data.Functor.Classes
 import Data.Maybe (isJust)
 import GHC.Exts (IsList(..))
-import Nominal.Lattice
-import qualified Nominal.Internal.Trie as Trie
-import Nominal.Internal.Trie (Trie, Atom(..))
+import Name.Lattice
+import qualified Name.Internal.Trie as Trie
+import Name.Internal.Trie (Trie, Atom(..))
 import Unsafe.Coerce
 
 data Set where

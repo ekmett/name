@@ -8,14 +8,14 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Atom
+module Name.Atom
 ( Atom
 , AsAtom(..)
 , HasAtom(..)
 ) where
 
 import Control.Lens
-import Nominal.Internal.Trie
+import Name.Internal.Trie
 
 class AsAtom t where
   _Atom :: Prism' t Atom

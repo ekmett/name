@@ -16,7 +16,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Support where
+module Name.Support where
 
 import Control.Lens hiding (set, sets)
 import qualified Data.List as List
@@ -24,10 +24,10 @@ import Data.Discrimination.Grouping
 import qualified GHC.Exts as Exts
 import GHC.Generics
 import Data.Void
-import Nominal.Lattice
-import Nominal.Internal.Permutation
-import Nominal.Internal.Trie as Trie
-import Nominal.Set as Set
+import Name.Lattice
+import Name.Internal.Permutation
+import Name.Internal.Trie as Trie
+import Name.Set as Set
 
 -- morally, this is Eq a => Trie a -> Support, but we use Ord for efficiency
 data Support where

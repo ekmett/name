@@ -19,7 +19,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Class
+module Name.Class
 ( Permutable(..), Permutable1(..)
 , Nominal(..), Nominal1(..)
 , Stream(..)
@@ -47,13 +47,13 @@ import qualified Data.Map.Internal as Map
 import Data.Proxy
 import Data.Void
 import GHC.Generics
-import Nominal.Atom
-import Nominal.Internal.Trie as Trie
-import Nominal.Internal.Permutation
-import Nominal.Set as Set
-import Nominal.Permutation
-import Nominal.Support
-import Nominal.Logic
+import Name.Atom
+import Name.Internal.Trie as Trie
+import Name.Internal.Permutation
+import Name.Set as Set
+import Name.Permutation
+import Name.Support
+import Name.Logic
 import Prelude hiding (elem)
 
 --------------------------------------------------------------------------------

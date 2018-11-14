@@ -16,13 +16,13 @@
 ---------------------------------------------------------------------------------
 
 -- throwaway code for trying to use the compiling to categories stuff to work for me
-module Nominal.Plugin where
+module Name.Plugin where
 
 import Data.Constraint hiding ((***))
 import ConCat.Category
-import Nominal.Class
-import Nominal.Set
-import Nominal.Tie
+import Name.Class
+import Name.Set
+import Name.Tie
 import Prelude hiding (id,(.))
 
 data Nom a b = Nom Set (a -> b)

@@ -1,14 +1,14 @@
 cabal-version: 2.2
-name:          nominal
-category:      Nominal Logic
+name:          name
+category:      Pure Nominal Logic
 version:       0
 license:       BSD-2-Clause OR Apache-2.0
 license-file:  LICENSE.md
 author:        Edward A. Kmett
 maintainer:    Edward A. Kmett <ekmett@gmail.com>
 stability:     provisional
-homepage:      http://github.com/ekmett/nominal/
-bug-reports:   http://github.com/ekmett/nominal/issues
+homepage:      http://github.com/ekmett/name/
+bug-reports:   http://github.com/ekmett/name/issues
 copyright:     Copyright (C) 2018 Edward A. Kmett
 synopsis:      Nominal sets
 description:   Nominal sets.
@@ -18,7 +18,7 @@ extra-source-files:
 
 source-repository head
   type: git
-  location: git://github.com/ekmett/nominal.git
+  location: git://github.com/ekmett/name.git
 
 -- this requires concat, which isn't on hackage
 flag concat
@@ -41,28 +41,28 @@ library
     transformers        >= 0.5.5 && < 0.6,
     mtl                 >= 2.2.2 && < 2.3
 
-  hs-source-dirs: src/nominal
+  hs-source-dirs: src/name
   ghc-options: -Wall
   default-language: Haskell2010
 
   exposed-modules:
-    Nominal
-    Nominal.Internal.Fun
-    Nominal.Internal.Map
-    Nominal.Internal.Trie
-    Nominal.Internal.Permutation
-    Nominal.Atom
-    Nominal.Category
-    Nominal.Class
-    Nominal.Lattice
-    Nominal.Logic
-    Nominal.Map
-    Nominal.Permutation
-    Nominal.Set
-    Nominal.Support
-    Nominal.Substitution
-    Nominal.Suspension
-    Nominal.Tie
+    Name
+    Name.Internal.Fun
+    Name.Internal.Map
+    Name.Internal.Trie
+    Name.Internal.Permutation
+    Name.Atom
+    Name.Category
+    Name.Class
+    Name.Lattice
+    Name.Logic
+    Name.Map
+    Name.Permutation
+    Name.Set
+    Name.Support
+    Name.Substitution
+    Name.Suspension
+    Name.Tie
 
 library plugin
   default-language: Haskell2010
@@ -74,8 +74,8 @@ library plugin
       concat-plugin,
       concat-classes,
       constraints,
-      nominal
+      name
     exposed-modules:
-      Nominal.Plugin
+      Name.Plugin
     hs-source-dirs: src/plugin
     ghc-options: -Wall

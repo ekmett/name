@@ -17,14 +17,14 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Internal.Map where
+module Name.Internal.Map where
 
 import Control.Lens hiding ((#))
 import Data.Functor.Compose
-import Nominal.Class
-import qualified Nominal.Internal.Trie as Trie
-import Nominal.Internal.Trie (Trie(..), Atom)
-import Nominal.Support
+import Name.Class
+import qualified Name.Internal.Trie as Trie
+import Name.Internal.Trie (Trie(..), Atom)
+import Name.Support
 
 -- maps from atoms to values, contains a memoized approximate support
 data Map a = Map !Support !(Trie a)

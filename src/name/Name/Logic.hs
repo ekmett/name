@@ -13,7 +13,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Nominal.Logic
+module Name.Logic
 ( Prop(..)
 , neg, implies, iff, top
 , liftB, liftB2
@@ -22,11 +22,11 @@ module Nominal.Logic
 import Control.Lens
 import Data.Semigroup
 import GHC.Generics
-import Nominal.Atom
--- import Nominal.Class
-import Nominal.Lattice
-import Nominal.Internal.Fun
-import Nominal.Set
+import Name.Atom
+-- import Name.Class
+import Name.Lattice
+import Name.Internal.Fun
+import Name.Set
 
 -- TODO: check my back of the envelope math
 
