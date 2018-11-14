@@ -1,4 +1,4 @@
-# nominal
+# name
 
 [![Travis Continuous Integration Status][travis-img]][travis]
 
