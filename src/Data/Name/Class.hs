@@ -19,7 +19,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Class
+module Data.Name.Class
 ( Permutable(..), Permutable1(..)
 , Nominal(..), Nominal1(..)
 , Stream(..)
@@ -44,23 +44,23 @@ import Data.Functor.Contravariant
 import Data.Functor.Contravariant.Divisible
 import Data.Functor.Contravariant.Generic
 import qualified Data.Map.Internal as Map
+import Data.Name.Type
+import Data.Name.Internal.Trie as Trie
+import Data.Name.Internal.Permutation
+import Data.Name.Set as Set
+import Data.Name.Permutation
+import Data.Name.Support
+import Data.Name.Logic
 import Data.Proxy
 import Data.Void
 import GHC.Generics
-import Name.Atom
-import Name.Internal.Trie as Trie
-import Name.Internal.Permutation
-import Name.Set as Set
-import Name.Permutation
-import Name.Support
-import Name.Logic
 import Prelude hiding (elem)
 
 --------------------------------------------------------------------------------
 -- * Permutable
 --------------------------------------------------------------------------------
 
-transgen :: (Generic s, GPermutable (Rep s)) => Atom -> Atom -> s -> s
+transgen :: (Generic s, GPermutable (Rep s)) => Name -> Name -> s -> s
 transgen i j = to . gtrans i j . from
 {-# inline [0] transgen #-}
 
@@ -76,8 +76,8 @@ permgen p = to . gperm p . from
   #-}
 
 class Permutable s where
-  trans :: Atom -> Atom -> s -> s
-  default trans :: (Generic s, GPermutable (Rep s)) => Atom -> Atom -> s -> s
+  trans :: Name -> Name -> s -> s
+  default trans :: (Generic s, GPermutable (Rep s)) => Name -> Name -> s -> s
   trans = transgen
   {-# inline trans #-}
 
@@ -91,7 +91,7 @@ class Permutable s where
   perm = permgen
   {-# inline perm #-}
 
-instance Permutable Atom where
+instance Permutable Name where
   trans a b c
     | c == a = b
     | c == b = a
@@ -171,7 +171,7 @@ instance Permutable Word where
 -- * Permutable1
 --------------------------------------------------------------------------------
 
-transgen1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Atom -> Atom -> s -> s) -> Atom -> Atom -> f s -> f s
+transgen1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Name -> Name -> s -> s) -> Name -> Name -> f s -> f s
 transgen1 f a b = to1 . gtrans1 f a b . from1
 {-# inline [0] transgen1 #-}
 
@@ -187,8 +187,8 @@ permgen1 f p = to1 . gperm1 f p . from1
   #-}
 
 class Permutable1 f where
-  trans1 :: (Atom -> Atom -> s -> s) -> Atom -> Atom -> f s -> f s
-  default trans1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Atom -> Atom -> s -> s) -> Atom -> Atom -> f s -> f s
+  trans1 :: (Name -> Name -> s -> s) -> Name -> Name -> f s -> f s
+  default trans1 :: (Generic1 f, GPermutable1 (Rep1 f)) => (Name -> Name -> s -> s) -> Name -> Name -> f s -> f s
   trans1 = transgen1
   {-# inline trans1 #-}
 
@@ -221,7 +221,7 @@ instance Permutable1 Trie where
 --------------------------------------------------------------------------------
 
 infixr 6 :-
-data Stream = Atom :- Stream
+data Stream = Name :- Stream
   deriving Generic
 
 instance Permutable Stream where
@@ -252,7 +252,7 @@ instance Decidable Supported where
 -- * Nominal
 --------------------------------------------------------------------------------
 
-sepgen :: Deciding Nominal s => Atom -> s -> Bool
+sepgen :: Deciding Nominal s => Name -> s -> Bool
 sepgen a = getPredicate $ deciding (Proxy :: Proxy Nominal) (Predicate (a #))
 {-# inline sepgen #-}
 
@@ -260,7 +260,7 @@ suppgen :: Deciding Nominal s => s -> Support
 suppgen = getSupported $ deciding (Proxy :: Proxy Nominal) (Supported supp)
 {-# inline suppgen #-}
 
-equivgen :: Deciding Nominal s => s -> Atom -> Atom -> Bool
+equivgen :: Deciding Nominal s => s -> Name -> Name -> Bool
 equivgen s i j = getPredicate (deciding (Proxy :: Proxy Nominal) (Predicate (\s' -> equiv s' i j))) s
 {-# inline equivgen #-}
 
@@ -269,8 +269,8 @@ class Permutable s => Nominal s where
   -- @
   -- a # x = not (member a (supp b))
   -- @
-  (#) :: Atom -> s -> Bool
-  default (#) :: Deciding Nominal s => Atom -> s -> Bool
+  (#) :: Name -> s -> Bool
+  default (#) :: Deciding Nominal s => Name -> s -> Bool
   (#) = sepgen
   {-# inline (#) #-}
   -- | The usual convention in nominal sets is to say something like:
@@ -299,14 +299,14 @@ class Permutable s => Nominal s where
   {-# inline supp #-}
 
   supply :: s -> Stream
-  supply (supp -> Supp s) = go $ maybe (A 0) (1+) $ sup s where
+  supply (supp -> Supp s) = go $ maybe (Name 0) (1+) $ sup s where
     go !i = i :- go (i+1)
 
   {-# inline supply #-}
 
   -- equivalent modulo support
-  equiv :: s -> Atom -> Atom -> Bool
-  default equiv :: Deciding Nominal s => s -> Atom -> Atom -> Bool
+  equiv :: s -> Name -> Name -> Bool
+  default equiv :: Deciding Nominal s => s -> Name -> Name -> Bool
   equiv = equivgen
   {-# inline equiv #-}
 
@@ -320,7 +320,7 @@ instance Nominal Support where
   supp = id
   equiv (Supp s) i j = s^.at i == s^.at j
 
-instance Nominal Atom where
+instance Nominal Name where
   equiv a b c = (a == b) == (a == c)
   supply i = go 0 where
     go !j
@@ -409,7 +409,7 @@ class Fresh a where
 fresh :: (Nominal s, Fresh a) => s -> a
 fresh = fst . refresh . supply
 
-instance Fresh Atom where
+instance Fresh Name where
   refresh (a :- as) = (a, as)
 
 instance Fresh () where
@@ -504,7 +504,7 @@ instance (NominalMonoid a, NominalMonoid b) => NominalMonoid (a, b)
 --------------------------------------------------------------------------------
 
 class GPermutable f where
-  gtrans :: Atom -> Atom -> f a -> f a
+  gtrans :: Name -> Name -> f a -> f a
   gperm :: Permutation -> f a -> f a
 
 instance Permutable c => GPermutable (K1 i c) where
@@ -538,7 +538,7 @@ instance (Permutable1 f, GPermutable g) => GPermutable (f :.: g) where
   gperm p (Comp1 a) = Comp1 (perm1 gperm p a)
 
 class GPermutable1 f where
-  gtrans1 :: (Atom -> Atom -> a -> a) -> Atom -> Atom -> f a -> f a
+  gtrans1 :: (Name -> Name -> a -> a) -> Name -> Name -> f a -> f a
   gperm1 :: (Permutation -> a -> a) -> Permutation -> f a -> f a
 
 instance Permutable c => GPermutable1 (K1 i c) where
@@ -618,7 +618,7 @@ class Nominal a => Binding a where
   default bv :: Deciding Binding a => a -> Set
   bv = getOp $ deciding (Proxy :: Proxy Binding) $ Op bv
 
-instance Binding Atom where
+instance Binding Name where
   binding a b = Just (swap a b)
   bv = Set.singleton
 
@@ -683,7 +683,7 @@ instance Binding1 Maybe
 class Binding a => Irrefutable a where
   match :: a -> a -> Permutation
 
-instance Irrefutable Atom where
+instance Irrefutable Name where
   match = swap -- TODO: move this far enough upstream so that match _is_ swap?
 
 instance Irrefutable Void where

@@ -19,7 +19,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Category where
+module Data.Name.Category where
 
 import Control.Applicative (Applicative(..), Alternative(..))
 import qualified Control.Arrow as Arrow
@@ -29,9 +29,9 @@ import GHC.Exts
 import GHC.Generics
 import Data.Kind
 import Data.Void
-import Name.Atom
-import Name.Class
-import Name.Support
+import Data.Name.Class
+import Data.Name.Support
+import Data.Name.Type
 import qualified Prelude
 import Prelude
   ( Either(..)
@@ -89,7 +89,7 @@ instance Nominal (k b a) => Nominal (Op (k :: * -> * -> *) a b)
 instance (Permutable (k a b), Permutable (k b a)) => Permutable (Core k a b)
 instance (Nominal (k a b), Nominal (k b a)) => Nominal (Core k a b)
 
-sepNom :: Atom -> Nom a b -> Bool
+sepNom :: Name -> Nom a b -> Bool
 sepNom a (Nom s _) = a # s
 
 suppNom :: Nom a b -> Support

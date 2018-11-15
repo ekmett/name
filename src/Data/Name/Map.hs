@@ -8,7 +8,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Map
+module Data.Name.Map
 ( Map
 , union            -- :: NominalSemigroup a => Map a -> Map a -> Map a
 , intersectionWith -- :: (a -> b -> c) -> Map a -> Map b -> Map c
@@ -22,4 +22,4 @@ module Name.Map
 ) where
 
 import Prelude hiding (lookup)
-import Name.Internal.Map
+import Data.Name.Internal.Map

@@ -16,7 +16,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Support where
+module Data.Name.Support where
 
 import Control.Lens hiding (set, sets)
 import qualified Data.List as List
@@ -24,10 +24,10 @@ import Data.Discrimination.Grouping
 import qualified GHC.Exts as Exts
 import GHC.Generics
 import Data.Void
-import Name.Lattice
-import Name.Internal.Permutation
-import Name.Internal.Trie as Trie
-import Name.Set as Set
+import Data.Name.Lattice
+import Data.Name.Internal.Permutation
+import Data.Name.Internal.Trie as Trie
+import Data.Name.Set as Set
 
 -- morally, this is Eq a => Trie a -> Support, but we use Ord for efficiency
 data Support where
@@ -89,7 +89,7 @@ data These a b = This a | That b | These a b
 flop :: a -> b -> [(b,a)] -> [(b,a)]
 flop k v r = (v,k):r
 
-canonical :: Support -> [[Atom]] -- Trie Int
+canonical :: Support -> [[Name]] -- Trie Int
 canonical (Supp xs) = runGroup grouping $ ifoldr flop [] xs
 
 instance PartialOrder Support where

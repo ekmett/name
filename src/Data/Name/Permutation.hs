@@ -14,7 +14,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Permutation
+module Data.Name.Permutation
 ( Permutation
 , swap -- generator
 , rcycles, cycles, cyclic, reassemble -- traditional presentation
@@ -28,12 +28,12 @@ import Control.Lens
 import Control.Monad
 import Data.Bits
 import Data.List (groupBy, sort)
-import Name.Internal.Trie
-import Name.Internal.Permutation
+import Data.Name.Internal.Trie
+import Data.Name.Internal.Permutation
 import Prelude hiding (elem, lookup)
 
 -- nominal
-swap :: Atom -> Atom -> Permutation
+swap :: Name -> Name -> Permutation
 swap i j
   | i /= j = join Permutation $ Tree $ insert i j $ insert j i Empty
   | otherwise = mempty
@@ -41,7 +41,7 @@ swap i j
 
 -- | This is not quite natural order, as its easiest for me to find the largest element and work backwards.
 -- for natural order, reverse the list of cycles. Not a nominal arrow
-rcycles :: Permutation -> [[Atom]]
+rcycles :: Permutation -> [[Name]]
 rcycles (Permutation t0 _) = go t0 where
   go t = case supTree t of
     Nothing -> []
@@ -49,7 +49,7 @@ rcycles (Permutation t0 _) = go t0 where
       (t',xs) -> xs : go t'
 
   -- mangles the tree to remove this cycle as we go
-  peel :: Atom -> Atom -> Tree -> (Tree, [Atom])
+  peel :: Name -> Name -> Tree -> (Tree, [Name])
   peel m e (Tree t) = case lookup e t of
     Nothing -> error $ show (m,e,t)
     Just n | n == m -> (Tree (delete e t), [e])
@@ -63,11 +63,11 @@ rcycles (Permutation t0 _) = go t0 where
 -}
 
 -- | standard cyclic representation of a permutation, broken into parts. Not equivariant
-cycles :: Permutation -> [[Atom]]
+cycles :: Permutation -> [[Name]]
 cycles = reverse . rcycles
 
 -- | standard cyclic representation of a permutation, smashed flat. Not equivariant
-cyclic :: Permutation -> [Atom]
+cyclic :: Permutation -> [Name]
 cyclic = concat . cycles
 
 -- | If the conjugacy class of two permutations is the same then there is a permutation that
@@ -88,8 +88,8 @@ conjugacyClass = sort . map length . rcycles
 -- 'perm' p . 'reassemble' = 'reassemble' . 'perm' p
 -- @
 --
-reassemble :: [Atom] -> [[Atom]]
-reassemble = groupBy (\(A x) (A y) -> x > y)
+reassemble :: [Name] -> [[Name]]
+reassemble = groupBy (\(Name x) (Name y) -> x > y)
 
 -- | equivariant
 -- @

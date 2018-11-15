@@ -19,22 +19,22 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Set where
+module Data.Name.Set where
 
 import Control.Lens
 import Control.Monad (guard)
 import Data.Functor.Classes
 import Data.Maybe (isJust)
+import Data.Name.Lattice
+import qualified Data.Name.Internal.Trie as Trie
+import Data.Name.Internal.Trie (Trie, Name(..))
 import GHC.Exts (IsList(..))
-import Name.Lattice
-import qualified Name.Internal.Trie as Trie
-import Name.Internal.Trie (Trie, Atom(..))
 import Unsafe.Coerce
 
 data Set where
   Set :: Trie a -> Set
 
-foldr :: (Atom -> r -> r) -> r -> Set -> r
+foldr :: (Name -> r -> r) -> r -> Set -> r
 foldr f z (Set t) = ifoldr (\i _ r -> f i r) z t
 {-# inline foldr #-}
 
@@ -48,7 +48,7 @@ instance Show Set where
   showsPrec d (Set xs) = showsPrec d $ ifoldr (\i _ r -> i:r) [] xs
 
 instance IsList Set where
-  type Item Set = Atom
+  type Item Set = Name
   fromList = Prelude.foldr insert mempty
   toList (Set xs) = ifoldr (\i _ r -> i:r) [] xs
   
@@ -78,34 +78,34 @@ instance AsEmpty Set where
     Set Empty -> Right ()
     x -> Left x
 
-type instance Index Set = Atom
+type instance Index Set = Name
 
 instance Contains Set where
   contains a f (Set e) = Set <$> at a (fmap guard' . f . isJust) e where
     guard' :: Bool -> Maybe a
     guard' b = undefined <$ guard b
 
-class (Index a ~ Atom, Contains a) => SetLike a where
-  insert :: Atom -> a -> a
+class (Index a ~ Name, Contains a) => SetLike a where
+  insert :: Name -> a -> a
   insert a = contains a .~ True
   {-# inline insert #-}
 
-  delete :: Atom -> a -> a
+  delete :: Name -> a -> a
   delete a = contains a .~ False
   {-# inline delete #-}
 
-  member :: Atom -> a -> Bool
+  member :: Name -> a -> Bool
   member = view . contains
   {-# inline member #-}
 
-  singleton :: Atom -> a
-  default singleton :: BoundedJoin a => Atom -> a
+  singleton :: Name -> a
+  default singleton :: BoundedJoin a => Name -> a
   singleton a = insert a bottom
   {-# inline singleton #-}
 
 infixr 6 +>
 
-(+>) :: SetLike a => Atom -> a -> a
+(+>) :: SetLike a => Name -> a -> a
 (+>) = insert
 
 instance SetLike Set where

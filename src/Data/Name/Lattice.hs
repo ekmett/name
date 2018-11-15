@@ -16,7 +16,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Lattice where
+module Data.Name.Lattice where
 
 import Control.Applicative (liftA2)
 import qualified Data.Bits as Bits

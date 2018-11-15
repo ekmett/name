@@ -12,14 +12,14 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Internal.Fun where
+module Data.Name.Internal.Fun where
 
 import Data.Bits (Bits, FiniteBits)
 import qualified Data.Bits as Bits
 import Data.Data
 import GHC.Generics
 import GHC.Arr
-import Name.Lattice
+import Data.Name.Lattice
 
 -- | all two argument functions enumerated by truth tables
 data Fun = TNever | TAnd | TGt | TF | TLt | TG | TXor | TOr | TNor | TXnor | TG' | TGe | TF' | TLe | TNand | TAlways

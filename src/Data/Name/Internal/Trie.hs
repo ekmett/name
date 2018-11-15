@@ -32,7 +32,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Internal.Trie
+module Data.Name.Internal.Trie
 {-
   ( Trie
   , singleton
@@ -67,33 +67,33 @@ import GHC.Types
 import Numeric.Natural
 import Prelude hiding (lookup, length, foldr)
 
-newtype Atom = A Natural deriving (Eq,Num,Ord) -- Num,Ord only for convenience
+newtype Name = Name Natural deriving (Eq,Num,Ord) -- Num,Ord only for convenience
 
 -- TODO: lift this into discrimination for Natural/Integer?
-instance Grouping Atom where
+instance Grouping Name where
   grouping = contramap coerce (grouping :: Group Natural)
 
-instance Show Atom where
-  showsPrec d (A n) = showsPrec d n
+instance Show Name where
+  showsPrec d (Name n) = showsPrec d n
 
-newtype Trie v = Trie { runTrie :: Map Atom v } deriving
+newtype Trie v = Trie { runTrie :: Map Name v } deriving
   ( Eq, Ord, Show
   , Functor, Foldable, Traversable
   , Eq1, Ord1, Show1
-  -- , FunctorWithIndex Atom, FoldableWithIndex Atom, TraversableWithIndex Atom
+  -- , FunctorWithIndex Name, FoldableWithIndex Name, TraversableWithIndex Name
   -- , Apply, Bind
   )
 
-sup :: Trie a -> Maybe Atom
+sup :: Trie a -> Maybe Name
 sup = fmap (fst . fst) . Map.maxViewWithKey . runTrie
 
-instance FunctorWithIndex Atom Trie where
+instance FunctorWithIndex Name Trie where
   imap f (Trie m) = Trie (imap f m)
 
-instance FoldableWithIndex Atom Trie where
+instance FoldableWithIndex Name Trie where
   ifoldMap f (Trie m) = ifoldMap f m
 
-instance TraversableWithIndex Atom Trie where
+instance TraversableWithIndex Name Trie where
   itraverse f (Trie m) = Trie <$> itraverse f m
 
 instance Apply Trie where
@@ -102,7 +102,7 @@ instance Apply Trie where
 instance Bind Trie where
   Trie m >>- f = Trie (m >>- runTrie . f)
 
-insert :: Atom -> v -> Trie v -> Trie v
+insert :: Name -> v -> Trie v -> Trie v
 insert a v (Trie m) = Trie (Map.insert a v m)
 
 instance Semigroup a => Semigroup (Trie a) where
@@ -117,7 +117,7 @@ unionWith :: (a -> a -> a) -> Trie a -> Trie a -> Trie a
 unionWith f (Trie a) (Trie b) = Trie $ Map.unionWith f a b
 {-# inline unionWith #-}
 
-unionWithKey :: (Atom -> a -> a -> a) -> Trie a -> Trie a -> Trie a
+unionWithKey :: (Name -> a -> a -> a) -> Trie a -> Trie a -> Trie a
 unionWithKey f (Trie a) (Trie b) = Trie $ Map.unionWithKey f a b
 
 union :: Trie a -> Trie a -> Trie a
@@ -132,7 +132,7 @@ intersection (Trie a) (Trie b) = Trie (Map.intersection a b)
 intersectionWith :: (a -> b -> c) -> Trie a -> Trie b -> Trie c
 intersectionWith f (Trie a) (Trie b) = Trie $ Map.intersectionWith f a b
 
-intersectionWithKey :: (Atom -> a -> b -> c) -> Trie a -> Trie b -> Trie c
+intersectionWithKey :: (Name -> a -> b -> c) -> Trie a -> Trie b -> Trie c
 intersectionWithKey f (Trie a) (Trie b) = Trie $ Map.intersectionWithKey f a b
 
 filterMap :: (a -> Maybe b) -> Trie a -> Trie b
@@ -140,46 +140,46 @@ filterMap f (Trie m) = Trie (Map.mapMaybe f m)
 
 {-# inline filterMap #-}
 
-ifilterMap :: (Atom -> a -> Maybe b) -> Trie a -> Trie b
+ifilterMap :: (Name -> a -> Maybe b) -> Trie a -> Trie b
 ifilterMap f (Trie m) = Trie (Map.mapMaybeWithKey f m)
 
 filter :: (a -> Bool) -> Trie a -> Trie a
 filter f (Trie m) = Trie (Map.filter f m)
 {-# inline filter #-}
 
-ifilter :: (Atom -> a -> Bool) -> Trie a -> Trie a
+ifilter :: (Name -> a -> Bool) -> Trie a -> Trie a
 ifilter f (Trie m) = Trie (Map.filterWithKey f m)
 
 partition :: (a -> Bool) -> Trie a -> (Trie a, Trie a)
 partition f (Trie m) = (Trie *** Trie) $ Map.partition f m
 {-# inline partition #-}
 
-ipartition :: (Atom -> a -> Bool) -> Trie a -> (Trie a, Trie a)
+ipartition :: (Name -> a -> Bool) -> Trie a -> (Trie a, Trie a)
 ipartition f (Trie m) = (Trie *** Trie) $ Map.partitionWithKey f m
 
 diff :: Trie a -> Trie b -> Trie a
 diff (Trie m) (Trie n) = Trie (Map.difference m n)
 
-delete :: Atom -> Trie v -> Trie v
+delete :: Name -> Trie v -> Trie v
 delete !k (Trie m) = Trie (Map.delete k m)
 
-(!) :: Trie v -> Atom -> v
+(!) :: Trie v -> Name -> v
 (!) (Trie m) a = m Map.! a
 
-lookup :: Atom -> Trie v -> Maybe v
+lookup :: Name -> Trie v -> Maybe v
 lookup a (Trie m) = Map.lookup a m
 {-# inlineable lookup #-}
 
-member :: Atom -> Trie v -> Bool
+member :: Name -> Trie v -> Bool
 member a (Trie m) = Map.member a m
 {-# inlineable member #-}
 
 -- | Build a singleton Trie
-singleton :: Atom -> v -> Trie v
+singleton :: Name -> v -> Trie v
 singleton a v = Trie (Map.singleton a v)
 {-# inline singleton #-}
 
-fromList :: [(Atom,v)] -> Trie v
+fromList :: [(Name,v)] -> Trie v
 fromList = Trie . Map.fromList
 {-# inline fromList #-}
 
@@ -187,7 +187,7 @@ empty :: Trie a
 empty = Trie Map.empty
 {-# inline empty #-}
 
-type instance Index (Trie a) = Atom
+type instance Index (Trie a) = Name
 type instance IxValue (Trie a) = a
 instance Ixed (Trie a)
 instance At (Trie a) where
@@ -200,7 +200,7 @@ disjoint :: Trie a -> Trie b -> Bool
 disjoint m n = null (intersection m n)
 
 imerge
-  :: (Atom -> a -> b -> Maybe c)
+  :: (Name -> a -> b -> Maybe c)
   -> (Trie a -> Trie c)
   -> (Trie b -> Trie c)
   -> Trie a -> Trie b -> Trie c

@@ -21,16 +21,16 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Tie where
+module Data.Name.Tie where
 
 import GHC.Generics
-import Name.Atom
-import Name.Category
-import qualified Name.Internal.Trie as Trie
-import Name.Class
-import Name.Lattice
-import Name.Set
-import Name.Support
+import Data.Name.Type
+import Data.Name.Category
+import qualified Data.Name.Internal.Trie as Trie
+import Data.Name.Class
+import Data.Name.Lattice
+import Data.Name.Set
+import Data.Name.Support
 
 type (⊸) = Tie
 
@@ -130,7 +130,7 @@ rightAdjunct :: (N k, Permutable b, Irrefutable c) => k a (c ⊸ b) -> k (a ∙ 
 rightAdjunct = nar $ \f (Untie y c) -> case f y of
   Tie d x -> perm (match c d) x
 
-paired :: (NI k, Permutable a) => k ((Atom ⊸ a) ∙ Atom) (Atom, a)
+paired :: (NI k, Permutable a) => k ((Name ⊸ a) ∙ Name) (Name, a)
 paired = niso_ f g where
   f (Untie (Tie a x) a') = (a', trans a' a x)
   g (a, x) = Untie (Tie a x) a

@@ -18,21 +18,21 @@ module Term where
 
 import Control.Lens
 import GHC.Generics
-import Name
+import Data.Name
 
 -- Eq automatically respects alpha-equivalence of bound terms
 
 data Term
-  = Var !Atom
+  = Var !Name
   | App !Term !Term
-  | Lam !(Atom ⊸ Term)
+  | Lam !(Name ⊸ Term)
   deriving (Eq, Show, Generic, Permutable, Nominal)
 
-instance Subst Term Atom where
+instance Subst Term Name where
   subst _ e = e
 
-instance AsAtom Term where
-  _Atom = prism Var $ \case
+instance AsName Term where
+  _Name = prism Var $ \case
     Var v -> Right v
     x -> Left x
 

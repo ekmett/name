@@ -11,10 +11,10 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Suspension where
+module Data.Name.Suspension where
 
-import Name.Class
-import Name.Permutation
+import Data.Name.Class
+import Data.Name.Permutation
 
 data Suspended a = Suspended Permutation a
   deriving (Functor, Foldable, Traversable)

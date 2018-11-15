@@ -8,26 +8,26 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Atom
-( Atom
-, AsAtom(..)
-, HasAtom(..)
+module Data.Name.Type
+( Name
+, AsName(..)
+, HasName(..)
 ) where
 
 import Control.Lens
-import Name.Internal.Trie
+import Data.Name.Internal.Trie
 
-class AsAtom t where
-  _Atom :: Prism' t Atom
+class AsName t where
+  _Name :: Prism' t Name
 
-instance AsAtom Atom where
-  _Atom = id
+instance AsName Name where
+  _Name = id
 
-instance AsAtom a => AsAtom (Maybe a) where
-  _Atom = _Just._Atom
+instance AsName a => AsName (Maybe a) where
+  _Name = _Just._Name
 
-class HasAtom t where
-  atom :: Lens' t Atom
+class HasName t where
+  atom :: Lens' t Name
 
-instance HasAtom Atom where
+instance HasName Name where
   atom = id

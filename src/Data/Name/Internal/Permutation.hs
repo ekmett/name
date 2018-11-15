@@ -16,26 +16,26 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Internal.Permutation where
+module Data.Name.Internal.Permutation where
 
 import Control.Lens
 import Control.Monad
 import Data.Maybe
-import Name.Internal.Trie
-import Prelude hiding (elem, lookup)
+import Data.Name.Internal.Trie
 import Data.Semigroup (Semigroup(..))
+import Prelude hiding (elem, lookup)
 
-newtype Tree = Tree (Trie Atom)
+newtype Tree = Tree (Trie Name)
   deriving (Eq,Show)
 
-permTree :: Tree -> Atom -> Atom
+permTree :: Tree -> Name -> Name
 permTree (Tree t) a = fromMaybe a $ lookup a t
 
 squareTree :: Tree -> Tree
 squareTree (Tree t) = Tree $ ifilterMap go t where
   go i j = mfilter (i/=) $ lookup j t -- check this
 
-supTree :: Tree -> Maybe Atom
+supTree :: Tree -> Maybe Name
 supTree (Tree t) = sup t
 
 instance Semigroup Tree where
@@ -47,7 +47,7 @@ instance Semigroup Tree where
   Tree x <> yt@(Tree y) = Tree $ ifilterMap f $ union (permTree yt <$> x) y where
     f i = mfilter (i/=) . pure
 
-elem :: Atom -> Lens' Tree Atom
+elem :: Name -> Lens' Tree Name
 elem i f (Tree s) = Tree <$> at i (non i f) s where
 
 instance Monoid Tree where

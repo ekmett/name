@@ -17,14 +17,14 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Internal.Map where
+module Data.Name.Internal.Map where
 
 import Control.Lens hiding ((#))
 import Data.Functor.Compose
-import Name.Class
-import qualified Name.Internal.Trie as Trie
-import Name.Internal.Trie (Trie(..), Atom)
-import Name.Support
+import Data.Name.Class
+import qualified Data.Name.Internal.Trie as Trie
+import Data.Name.Internal.Trie (Trie(..), Name)
+import Data.Name.Support
 
 -- maps from atoms to values, contains a memoized approximate support
 data Map a = Map !Support !(Trie a)
@@ -66,24 +66,24 @@ diff (Map s0 t0) (supp -> Supp t1) = case Trie.diff t0 t1 of
 (\\) = diff
 
 -- equivariant
-lookup :: Atom -> Map a -> Maybe a
+lookup :: Name -> Map a -> Maybe a
 lookup i (Map _ t) = Trie.lookup i t
 
 -- equivariant
-delete :: Atom -> Map a -> Map a
+delete :: Name -> Map a -> Map a
 delete i (Map s0 t0) = case Trie.delete i t0 of
   Empty -> Map mempty Empty
   t -> Map s0 t
 
 -- equivariant
-insert :: Nominal a => Atom -> a -> Map a -> Map a
+insert :: Nominal a => Name -> a -> Map a -> Map a
 insert v a (Map s t) = Map (supp v <> supp a <> s) $ Trie.insert v a t
 
 -- equivariant
-singleton :: Nominal a => Atom -> a -> Map a
+singleton :: Nominal a => Name -> a -> Map a
 singleton v a = Map (supp v <> supp a) (Trie.singleton v a)
 
-type instance Index (Map a) = Atom
+type instance Index (Map a) = Name
 type instance IxValue (Map a) = a
 instance Nominal a => Ixed (Map a)
 instance Nominal a => At (Map a) where

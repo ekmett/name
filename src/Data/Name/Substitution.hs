@@ -6,22 +6,22 @@
 {-# language MultiParamTypeClasses #-}
 {-# language UndecidableInstances #-}
 
-module Name.Substitution
+module Data.Name.Substitution
 ( Subst(..), substgen, substexp, GSubst
 , Subst1(..), subst1gen, GSubst1
 ) where
 
 import Control.Lens hiding (to, from)
 import Data.Maybe
+import Data.Name.Type
+import Data.Name.Class
+import Data.Name.Lattice
+import Data.Name.Map as Map
+import Data.Name.Permutation
+import Data.Name.Set as Set
+import Data.Name.Support
+import Data.Name.Tie
 import GHC.Generics
-import Name.Atom
-import Name.Class
-import Name.Lattice
-import Name.Map as Map
-import Name.Permutation
-import Name.Set as Set
-import Name.Support
-import Name.Tie
 
 -- TODO: fuse the 'perm' call into 'subst'
 -- TODO: use the 'Shared' trick from ermine or the pointer check from containers to increase term sharing.
@@ -103,20 +103,20 @@ instance Nominal e => GSubst1 e Par1 where
 instance Subst1 e f => GSubst1 e (Rec1 f) where
   gsubst1 f m (Rec1 x) = Rec1 (subst1 f m x)
 
-substexp :: (Generic e, AsAtom e, GSubst e (Rep e)) => Map e -> e -> e
-substexp m t = case t^?_Atom of
+substexp :: (Generic e, AsName e, GSubst e (Rep e)) => Map e -> e -> e
+substexp m t = case t^?_Name of
   Just v -> fromMaybe t $ Map.lookup v m
   Nothing -> substgen m t
 
 instance {-# overlappable #-} 
-  ( AsAtom e
+  ( AsName e
   , Generic e
   , GSubst e (Rep e)
   , Nominal e -- why can't this find it via the superclass of GSubst e (Rep e)?
   ) => Subst e e where
   subst = substexp
 
-instance {-# overlapping #-} Subst Atom Atom where subst m a = fromMaybe a $ Map.lookup a m
+instance {-# overlapping #-} Subst Name Name where subst m a = fromMaybe a $ Map.lookup a m
 
 instance (Subst e a, Binding a, Subst e b, Nominal b) => Subst e (Tie a b) where
   subst e (Tie a b)

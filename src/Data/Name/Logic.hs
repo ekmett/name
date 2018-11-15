@@ -13,7 +13,7 @@
 --
 ---------------------------------------------------------------------------------
 
-module Name.Logic
+module Data.Name.Logic
 ( Prop(..)
 , neg, implies, iff, top
 , liftB, liftB2
@@ -22,11 +22,10 @@ module Name.Logic
 import Control.Lens
 import Data.Semigroup
 import GHC.Generics
-import Name.Atom
--- import Name.Class
-import Name.Lattice
-import Name.Internal.Fun
-import Name.Set
+import Data.Name.Type
+import Data.Name.Lattice
+import Data.Name.Internal.Fun
+import Data.Name.Set
 
 -- TODO: check my back of the envelope math
 
@@ -130,7 +129,7 @@ instance AsEmpty Prop where
      t -> Left t
   {-# inline _Empty #-}
 
-type instance Index Prop = Atom
+type instance Index Prop = Name
 instance Contains Prop where
   contains a f (Finite s) = Finite <$> contains a f s
   contains a f (Cofinite s) = Cofinite <$> contains a (fmap not . f . not) s

@@ -20,8 +20,8 @@
 module Pat where
 
 import Control.Lens (prism)
+import Data.Name
 import GHC.Generics
-import Name
 
 -- Eq automatically respects alpha-equivalence of bound terms
 
@@ -29,13 +29,13 @@ type Con = String
 
 data Pat
   = PWild
-  | PVar Atom
+  | PVar Name
   | PCon Con [Pat]
   | PLit Int
   deriving (Show, Eq, Generic, Permutable, Nominal, Binding)
 
-instance AsAtom Pat where
-  _Atom = prism PVar $ \case
+instance AsName Pat where
+  _Name = prism PVar $ \case
     PVar v -> Right v
     x -> Left x
 
@@ -50,52 +50,52 @@ instance (Binding a, Nominal b, Eq b) => Binding (Sig a b) where
 instance (Subst e a, Subst e b) => Subst e (Sig a b)
 
 data Kind
-  = KVar Atom
+  = KVar Name
   | KType
   | KHole
   | KArr Kind Kind
   deriving (Show, Eq, Generic, Permutable, Nominal)
 
-instance AsAtom Kind where
-  _Atom = prism KVar $ \case
+instance AsName Kind where
+  _Name = prism KVar $ \case
     KVar v -> Right v
     x -> Left x
 
 data Type
-  = TVar Atom
+  = TVar Name
   | TInt
   | TArr Type Type
   | TCon Con [Type]
   | THole
-  | TForall (Sig Atom Kind ⊸ Type)
+  | TForall (Sig Name Kind ⊸ Type)
   deriving (Show, Eq, Generic, Permutable, Nominal)
 
-instance AsAtom Type where
-  _Atom = prism TVar $ \case
+instance AsName Type where
+  _Name = prism TVar $ \case
     TVar v -> Right v
     x -> Left x
 
 data Term
-  = Var Atom
+  = Var Name
   | App Term Term
   | Lam (Pat ⊸ Term)
-  | Let (Sig Atom Type ⊸ Term) Term
+  | Let (Sig Name Type ⊸ Term) Term
   | Case Term [Pat ⊸ Term]
   deriving (Show, Eq, Generic, Permutable, Nominal)
 
-instance AsAtom Term where
-  _Atom = prism Var $ \case
+instance AsName Term where
+  _Name = prism Var $ \case
     Var v -> Right v
     x -> Left x
 
 instance Subst Kind Term
 instance Subst Kind Type
 instance Subst Type Term
-instance Subst Kind Atom where subst _ e = e
+instance Subst Kind Name where subst _ e = e
 instance Nominal e => Subst e Char where subst _ e = e
 instance Nominal e => Subst e Int where subst _ e = e
-instance Subst Type Atom where subst _ e = e
-instance Subst Term Atom where subst _ e = e
+instance Subst Type Name where subst _ e = e
+instance Subst Term Name where subst _ e = e
 instance Subst Term Kind where subst _ e = e
 instance Subst Kind Pat  where subst _ e = e
 instance Subst Type Pat  where subst _ e = e
