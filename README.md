@@ -1,4 +1,4 @@
-# nominal
+# name
 
 [![Travis Continuous Integration Status][travis-img]][travis]
 
@@ -27,5 +27,5 @@ Please feel free to contact me through github or on the `##coda` or `#haskell` I
 
 -Edward Kmett
 
- [travis]: http://travis-ci.org/ekmett/nominal
- [travis-img]: https://secure.travis-ci.org/ekmett/nominal.png?branch=master
+ [travis]: http://travis-ci.org/ekmett/name
+ [travis-img]: https://secure.travis-ci.org/ekmett/name.png?branch=master
