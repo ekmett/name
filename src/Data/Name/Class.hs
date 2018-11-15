@@ -22,7 +22,7 @@
 module Data.Name.Class
 ( Permutable(..), Permutable1(..)
 , Nominal(..), Nominal1(..)
-, Stream(..)
+, Supply(..), suppgen, equivgen, sepgen, supplysupp, supplygen
 , Fresh(..), Fresh1(..), fresh
 -- , (#), support
 , NominalSemigroup, NominalMonoid
@@ -217,16 +217,22 @@ instance Permutable1 Trie where
   {-# inline perm1 #-}
 
 --------------------------------------------------------------------------------
--- * Streams
+-- * Supplys
 --------------------------------------------------------------------------------
 
-infixr 6 :-
-data Stream = Name :- Stream
-  deriving Generic
+newtype Supply = Supply {getSupply :: Name} deriving Generic
 
-instance Permutable Stream where
+instance Semigroup Supply where
+  Supply a <> Supply b = Supply (max a b)
+
+instance Monoid Supply where
+  mempty = Supply 0
+
+{-
+instance Permutable Supply where
   trans i j (a :- as) = trans i j a :- trans i j as
   perm p (a :- as) = perm p a :- perm p as
+-}
 
 --------------------------------------------------------------------------------
 -- * Supported
@@ -264,6 +270,13 @@ equivgen :: Deciding Nominal s => s -> Name -> Name -> Bool
 equivgen s i j = getPredicate (deciding (Proxy :: Proxy Nominal) (Predicate (\s' -> equiv s' i j))) s
 {-# inline equivgen #-}
 
+supplygen :: Deciding Nominal s => s -> Supply
+supplygen = getOp $ deciding (Proxy :: Proxy Nominal) (Op supply)
+
+-- fast if you have O(1) support
+supplysupp :: Nominal s => s -> Supply
+supplysupp (supp -> Supp s) = Supply $ maybe (Name 0) (1+) $ sup s
+
 class Permutable s => Nominal s where
 
   -- @
@@ -298,10 +311,9 @@ class Permutable s => Nominal s where
   supp = suppgen
   {-# inline supp #-}
 
-  supply :: s -> Stream
-  supply (supp -> Supp s) = go $ maybe (Name 0) (1+) $ sup s where
-    go !i = i :- go (i+1)
-
+  supply :: s -> Supply
+  default supply :: Deciding Nominal s => s -> Supply
+  supply = supplygen
   {-# inline supply #-}
 
   -- equivalent modulo support
@@ -313,19 +325,18 @@ class Permutable s => Nominal s where
 instance Nominal Permutation where
   a # Permutation (Tree t) _ = not (Trie.member a t)
   supp (Permutation (Tree t) _) = Supp t
+  supply = supplysupp
   equiv = equiv . supp
 
 instance Nominal Support where
   a # Supp s = not (Trie.member a s)
   supp = id
+  supply = supplysupp
   equiv (Supp s) i j = s^.at i == s^.at j
 
 instance Nominal Name where
   equiv a b c = (a == b) == (a == c)
-  supply i = go 0 where
-    go !j
-      | i == j    = go (j+1)
-      | otherwise = j :- go (j+1)
+  supply (Name i) = Supply $ Name (i+1)
   (#) = (/=)
   supp a = Supp (Trie.singleton a ())
 
@@ -334,16 +345,15 @@ instance Eq (Blind a) where _ == _ = True
 instance Ord (Blind a) where compare _ _ = EQ
 instance Grouping (Blind a) where grouping = conquer
 
-
-
 instance Nominal Set where
   a # s = not (Set.member a s)
+  supply = supplysupp
   supp (Set s) = Supp (go s) where
     go :: Trie a -> Trie (Blind a)
     go = coerce
-    _ignore :: a -> Blind a 
+    _ignore :: a -> Blind a
     _ignore = Blind
-   
+
   equiv s i j = Set.member i s == Set.member j s
 
 instance (Nominal a, Nominal b) => Nominal (a, b)
@@ -368,25 +378,38 @@ instance Nominal Int where
   equiv _ _ _ = True
   _ # _ = True
   supp _ = mempty
+  supply _ = mempty
 
 instance Nominal Char where
   equiv _ _ _ = True
   _ # _ = True
   supp _ = mempty
+  supply _ = mempty
 
 instance Nominal Word where
   equiv _ _ _ = True
   _ # _ = True
   supp _ = mempty
+  supply _ = mempty
 
 --------------------------------------------------------------------------------
 -- * Lifted Nominal Support
 --------------------------------------------------------------------------------
 
+supp1gen :: Deciding1 Nominal f => (s -> Support) -> f s -> Support
+supp1gen f = getSupported $ deciding1 (Proxy :: Proxy Nominal) (Supported supp) (Supported f)
+
+supply1gen :: Deciding1 Nominal f => (s -> Supply) -> f s -> Supply
+supply1gen f = getOp $ deciding1 (Proxy :: Proxy Nominal) (Op supply) (Op f)
+
 class Permutable1 f => Nominal1 f where
   supp1 :: (s -> Support) -> f s -> Support
   default supp1 :: Deciding1 Nominal f => (s -> Support) -> f s -> Support
-  supp1 f = getSupported $ deciding1 (Proxy :: Proxy Nominal) (Supported supp) (Supported f)
+  supp1 = supp1gen
+
+  supply1 :: (s -> Supply) -> f s -> Supply
+  default supply1 :: Deciding1 Nominal f => (s -> Supply) -> f s -> Supply
+  supply1 = supply1gen
 
 instance Nominal1 []
 instance Nominal1 Maybe
@@ -404,13 +427,13 @@ instance Nominal a => Nominal1 (Either a)
 --------------------------------------------------------------------------------
 
 class Fresh a where
-  refresh :: Stream -> (a, Stream)
+  refresh :: Supply -> (a, Supply)
 
 fresh :: (Nominal s, Fresh a) => s -> a
 fresh = fst . refresh . supply
 
 instance Fresh Name where
-  refresh (a :- as) = (a, as)
+  refresh (Supply a) = (a, Supply $ a+1)
 
 instance Fresh () where
   refresh = (,) ()
@@ -433,16 +456,12 @@ instance (Fresh a, Fresh b, Fresh c, Fresh d) => Fresh (a, b, c, d) where
         (c,ds) -> case refresh ds of
           (d,es) -> ((a,b,c,d),es)
 
-instance Fresh Stream where
-  refresh as@(_ :- bs) = (skip as, skip bs) where
-    skip (x :- _ :- xs) = x :- skip xs
-
 --------------------------------------------------------------------------------
 -- * Lifted Fresh
 --------------------------------------------------------------------------------
 
 class Fresh1 f where
-  refresh1 :: (Stream -> (a, Stream)) -> Stream -> (f a, Stream)
+  refresh1 :: (Supply -> (a, Supply)) -> Supply -> (f a, Supply)
 
 instance Fresh a => Fresh1 ((,) a) where
   refresh1 f as = case refresh as of

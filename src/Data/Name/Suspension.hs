@@ -34,7 +34,8 @@ instance Permutable (Suspended a) where
 instance Nominal a => Nominal (Suspended a) where
   a # Suspended q b = perm (inv q) a # b
   supp (Suspended q a) = perm q (supp a)
-  supply (Suspended q b) = perm q (supply b)
+  supply = supplysupp
+  -- supply (Suspended q b) = perm q (supply b)
   equiv (Suspended (inv -> p) b) i j = equiv b (perm p i) (perm p j)
 
 -- | semi-direct product of a finite permutation and a nominal semigroup

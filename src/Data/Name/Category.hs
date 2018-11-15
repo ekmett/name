@@ -548,6 +548,8 @@ instance Nominal a => Nominal (Tensor v a) where
 instance Nominal1 (Tensor v) where
   supp1 f (Tensor _ a) = f a
   {-# inline supp1 #-}
+  supply1 f (Tensor _ a) = f a
+  {-# inline supply1 #-}
 
 instance (Eq a, Binding b) => Binding (Tensor a b) where
   binding (Tensor a b) (Tensor c d) = guard (a == c) *> binding b d
@@ -603,6 +605,8 @@ instance (Finite v, Nominal a) => Nominal (Power v a) where
   {-# inline (#) #-}
   supp (Power f) = foldMap (supp . f) every
   {-# inline supp #-}
+  supply (Power f) = foldMap (supply . f) every
+  {-# inline supply #-}
   -- default supply -- could this be better if i computed sups off of each support instead?
   equiv (Power f) b c = Prelude.all (\ v -> equiv (f v) b c) every
   {-# inline equiv #-}
@@ -610,6 +614,8 @@ instance (Finite v, Nominal a) => Nominal (Power v a) where
 instance Finite v => Nominal1 (Power v) where
   supp1 f (Power g) = foldMap (f . g) every
   {-# inline supp1 #-}
+  supply1 f (Power g) = foldMap (f . g) every
+  {-# inline supply1 #-}
 
 newtype Applied f a = Applied { getApplied :: f a }
 instance (Applicative f, Semigroup a) => Semigroup (Applied f a) where Applied m <> Applied n = Applied $ liftA2 (<>) m n

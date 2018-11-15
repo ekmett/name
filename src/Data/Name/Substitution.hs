@@ -120,6 +120,7 @@ instance {-# overlapping #-} Subst Name Name where subst m a = fromMaybe a $ Map
 
 instance (Subst e a, Binding a, Subst e b, Nominal b) => Subst e (Tie a b) where
   subst e (Tie a b)
-    | p <- fst $ Set.foldr step (mempty, fresh (e, a, b)) (bv a /\ coarsest (supp e))
+    | p <- fst $ Set.foldr step (mempty, supply (e, a, b)) (bv a /\ coarsest (supp e))
     = Tie (subst e (perm p a)) (subst e (perm p b))
-    where step u (x, v :- vs) = (swap u v <> x, vs)
+    where step u (x, vs) = case refresh vs of
+            (v,vs') -> (swap u v <> x, vs')
