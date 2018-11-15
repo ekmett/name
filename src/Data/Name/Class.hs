@@ -46,7 +46,7 @@ import Data.Functor.Contravariant.Generic
 import qualified Data.Map.Internal as Map
 import Data.Name.Type
 import Data.Name.Internal.Trie as Trie
-import Data.Name.Internal.Permutation
+import Data.Name.Internal.Perm
 import Data.Name.Set as Set
 import Data.Name.Permutation
 import Data.Name.Support
@@ -72,7 +72,7 @@ permgen p = to . gperm p . from
 "transgen/transgen/ijij" [~1] forall i j x. transgen i j (transgen i j x) = x
 "transgen/transgen/ijji" [~1] forall i j x. transgen i j (transgen j i x) = x
 "permgen/swap=transgen" [~1] forall i j. permgen (swap i j) = transgen i j
-"permgen/mempty=id" [~1] forall x. permgen (Permutation (Tree (Trie Map.Tip)) x) = id
+"permgen/mempty=id" [~1] forall x. permgen (Permutation (Perm (Trie Map.Tip)) x) = id
   #-}
 
 class Permutable s where
@@ -97,7 +97,7 @@ instance Permutable Name where
     | c == b = a
     | otherwise = c
   {-# inline trans #-}
-  perm (Permutation t _) i = permTree t i
+  perm (Permutation t _) i = perm' t i
   {-# inline perm #-}
 
 instance Permutable Permutation where
@@ -111,7 +111,7 @@ instance Permutable Set where
     & contains j .~ s^.contains i
     & contains i .~ s^.contains j
   {-# inline trans #-}
-  perm (Permutation (Tree p) _) z = ifoldr tweak z p where
+  perm (Permutation (Perm p) _) z = ifoldr tweak z p where
     tweak i j s = s & contains j .~ z^.contains i -- can't use trans, note s /= z
   {-# inline perm #-}
 
@@ -120,7 +120,7 @@ instance Permutable Support where
     & at j .~ s^.at i
     & at i .~ s^.at j
   {-# inline trans #-}
-  perm (Permutation (Tree p) _) (Supp z) = Supp $ ifoldr tweak z p where
+  perm (Permutation (Perm p) _) (Supp z) = Supp $ ifoldr tweak z p where
     tweak i j s = s & at j .~ z^.at i
   {-# inline perm #-}
 
@@ -129,7 +129,7 @@ instance Permutable a => Permutable (Trie a) where
     & at j .~ s^.at i
     & at i .~ s^.at j
   {-# inline trans #-}
-  perm p0@(Permutation (Tree p) _) t = ifoldr tweak z p where
+  perm p0@(Permutation (Perm p) _) t = ifoldr tweak z p where
     tweak i j s = s & at j .~ z^.at i
     z = perm p0 <$> t
   {-# inline perm #-}
@@ -183,7 +183,7 @@ permgen1 f p = to1 . gperm1 f p . from1
 "transgen1/transgen1/ijij" [~1] forall f i j x. transgen1 f i j (transgen1 f i j x) = x
 "transgen1/transgen1/ijji" [~1] forall f i j x. transgen1 f i j (transgen1 f j i x) = x
 "permgen1/swap=transgen1" [~1] forall f i j. permgen1 f (swap i j) = transgen1 (\x y -> f (swap x y)) i j
-"permgen1/mempty=id" [~1] forall f x. permgen1 f (Permutation (Tree (Trie Map.Tip)) x) = id
+"permgen1/mempty=id" [~1] forall f x. permgen1 f (Permutation (Perm (Trie Map.Tip)) x) = id
   #-}
 
 class Permutable1 f where
@@ -211,7 +211,7 @@ instance Permutable1 Trie where
     & at i .~ z^.at j
     where z = f i j <$> s
   {-# inline trans1 #-}
-  perm1 f p0@(Permutation (Tree p) _) t = ifoldr tweak z p where
+  perm1 f p0@(Permutation (Perm p) _) t = ifoldr tweak z p where
     tweak i j s = s & at j .~ z^.at i
     z = f p0 <$> t
   {-# inline perm1 #-}
@@ -323,8 +323,8 @@ class Permutable s => Nominal s where
   {-# inline equiv #-}
 
 instance Nominal Permutation where
-  a # Permutation (Tree t) _ = not (Trie.member a t)
-  supp (Permutation (Tree t) _) = Supp t
+  a # Permutation (Perm t) _ = not (Trie.member a t)
+  supp (Permutation (Perm t) _) = Supp t
   supply = supplysupp
   equiv = equiv . supp
 

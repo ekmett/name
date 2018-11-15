@@ -1,9 +1,6 @@
 TODO
 ----
 
-* Build a better `Tree`. No point in walking down n levels just to get to one leaf. Reify `unit k j` as a data constructor.
-  We can still zip. More complicated logic for all operations, but speed!
-
 * Provide code for converting trees <-> a prefix of the naturals as an `STArray`.
 
 * Prove I can implement the Gordon Complementary Bijection Principle (GCBP) in O(n log n) time using those two things, and by repeated

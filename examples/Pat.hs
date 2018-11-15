@@ -91,14 +91,14 @@ instance AsName Term where
 instance Subst Kind Term
 instance Subst Kind Type
 instance Subst Type Term
-instance Subst Kind Name where subst _ e = e
-instance Nominal e => Subst e Char where subst _ e = e
-instance Nominal e => Subst e Int where subst _ e = e
-instance Subst Type Name where subst _ e = e
-instance Subst Term Name where subst _ e = e
-instance Subst Term Kind where subst _ e = e
-instance Subst Kind Pat  where subst _ e = e
-instance Subst Type Pat  where subst _ e = e
-instance Subst Term Pat  where subst _ e = e
-instance Subst Term Type where subst _ e = e
-instance Subst Type Kind where subst _ e = e
+instance Subst Kind Name where subst _ = perm
+instance Nominal e => Subst e Char where subst _ _ = id
+instance Nominal e => Subst e Int  where subst _ _ = id
+instance Subst Type Name where subst _ = perm
+instance Subst Term Name where subst _ = perm
+instance Subst Term Kind where subst _ = perm
+instance Subst Kind Pat  where subst _ = perm
+instance Subst Type Pat  where subst _ = perm
+instance Subst Term Pat  where subst _ = perm
+instance Subst Term Type where subst _ = perm
+instance Subst Type Kind where subst _ = perm

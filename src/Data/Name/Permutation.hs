@@ -3,6 +3,7 @@
 {-# language TypeOperators #-}
 {-# language FlexibleContexts #-}
 {-# language PatternSynonyms #-}
+{-# language LambdaCase #-}
 
 ---------------------------------------------------------------------------------
 -- |
@@ -15,7 +16,7 @@
 ---------------------------------------------------------------------------------
 
 module Data.Name.Permutation
-( Permutation
+( Permutation(..)
 , swap -- generator
 , rcycles, cycles, cyclic, reassemble -- traditional presentation
 , inv -- invert a permutation
@@ -28,14 +29,58 @@ import Control.Lens
 import Control.Monad
 import Data.Bits
 import Data.List (groupBy, sort)
+import Data.Name.Internal.Perm
 import Data.Name.Internal.Trie
-import Data.Name.Internal.Permutation
+import Data.Semigroup
 import Prelude hiding (elem, lookup)
 
--- nominal
+-- | The pair of a permutation and its inverse permutation
+data Permutation = Permutation Perm Perm
+  deriving Show
+
+instance Eq Permutation where
+  Permutation x _ == Permutation y _ = x == y
+
+instance Ord Permutation where
+  Permutation x _ `compare` Permutation y _ = compare x y
+
+instance AsEmpty Permutation where
+  _Empty = prism (const mempty) $ \case
+    Permutation (Perm Empty) _ -> Right ()
+    t -> Left t
+
+inv :: Permutation -> Permutation
+inv (Permutation s t) = Permutation t s
+
+square :: Permutation -> Permutation
+square (Permutation s t) = Permutation (square' s) (square' t)
+
+instance Semigroup Permutation where
+  Permutation a b <> Permutation c d = Permutation (a <> c) (d <> b)
+  stimes n x0 = case compare n 0 of
+    LT -> f (inv x0) (negate n)
+    EQ -> mempty
+    GT -> f x0 n
+    where
+      f x y
+        | even y = f (square x) (quot y 2)
+        | y == 1 = x
+        | otherwise = g (square x) (quot y 2) x
+      g x y z
+        | even y = g (square x) (quot y 2) z
+        | y == 1 = x <> z
+        | otherwise = g (square x) (quot y 2) (x <> z)
+
+instance Monoid Permutation where
+  mempty = Permutation mempty mempty
+
+-- promote :: Perm -> Permutation
+-- promote t = Permutation t (inv' t)
+
+-- | equivariant
 swap :: Name -> Name -> Permutation
 swap i j
-  | i /= j = join Permutation $ Tree $ insert i j $ insert j i Empty
+  | i /= j = join Permutation $ Perm $ insert i j $ insert j i Empty
   | otherwise = mempty
 {-# inline [0] swap #-}
 
@@ -43,24 +88,17 @@ swap i j
 -- for natural order, reverse the list of cycles. Not a nominal arrow
 rcycles :: Permutation -> [[Name]]
 rcycles (Permutation t0 _) = go t0 where
-  go t = case supTree t of
+  go t = case sup' t of
     Nothing -> []
     Just m -> case peel m m t of
       (t',xs) -> xs : go t'
 
   -- mangles the tree to remove this cycle as we go
-  peel :: Name -> Name -> Tree -> (Tree, [Name])
-  peel m e (Tree t) = case lookup e t of
+  peel :: Name -> Name -> Perm -> (Perm, [Name])
+  peel m e (Perm t) = case lookup e t of
     Nothing -> error $ show (m,e,t)
-    Just n | n == m -> (Tree (delete e t), [e])
-           | otherwise -> (e:) <$> peel m n (Tree (delete e t))
-
-{-
-   case t & at e <<.~ Nothing of
-    (Just n, t') | n == m    -> (Tree t', [e])
-                 | otherwise -> (e :) <$> peel m n (Tree t')
-    (Nothing, t') -> (Tree t', [e])
--}
+    Just n | n == m -> (Perm (delete e t), [e])
+           | otherwise -> (e:) <$> peel m n (Perm (delete e t))
 
 -- | standard cyclic representation of a permutation, broken into parts. Not equivariant
 cycles :: Permutation -> [[Name]]
@@ -80,7 +118,7 @@ cyclic = concat . cycles
 conjugacyClass :: Permutation -> [Int]
 conjugacyClass = sort . map length . rcycles
 
--- | reassemble takes a standard cyclic representation smashed flat and reassembles the cycles, not equivariant
+-- | Reassemble takes a standard cyclic representation smashed flat and reassembles the cycles, not equivariant
 --
 -- @
 -- 'reassemble' . 'cyclic' = 'cycles'
@@ -91,7 +129,8 @@ conjugacyClass = sort . map length . rcycles
 reassemble :: [Name] -> [[Name]]
 reassemble = groupBy (\(Name x) (Name y) -> x > y)
 
--- | equivariant
+-- | Equivariant
+-- 
 -- @
 -- 'perm' p 'parity' q = perm p ('parity' p ('perm' (inv p) q)) = 'parity' q
 -- @

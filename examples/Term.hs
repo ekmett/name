@@ -29,12 +29,12 @@ data Term
   deriving (Eq, Show, Generic, Permutable, Nominal)
 
 instance Subst Term Name where
-  subst _ e = e
+  subst _ _ = id
 
 instance AsName Term where
   _Name = prism Var $ \case
     Var v -> Right v
     x -> Left x
 
-substTerm :: Map Term -> Term -> Term
+substTerm :: Map Term -> Permutation -> Term -> Term
 substTerm = subst 

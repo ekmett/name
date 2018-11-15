@@ -1,10 +1,11 @@
-{-# language EmptyCase #-}
-{-# language TypeOperators #-}
-{-# language DefaultSignatures #-}
-{-# language FlexibleContexts #-}
-{-# language FlexibleInstances #-}
-{-# language MultiParamTypeClasses #-}
-{-# language UndecidableInstances #-}
+{-# Language EmptyCase #-}
+{-# Language TypeOperators #-}
+{-# Language DefaultSignatures #-}
+{-# Language FlexibleContexts #-}
+{-# Language FlexibleInstances #-}
+{-# Language MultiParamTypeClasses #-}
+{-# Language UndecidableInstances #-}
+{-# Language ViewPatterns #-}
 
 module Data.Name.Substitution
 ( Subst(..), substgen, substexp, GSubst
@@ -26,12 +27,12 @@ import GHC.Generics
 -- TODO: fuse the 'perm' call into 'subst'
 -- TODO: use the 'Shared' trick from ermine or the pointer check from containers to increase term sharing.
 
-substgen :: (Generic a, GSubst e (Rep a)) => Map e -> a -> a
-substgen e = to . gsubst e . from
+substgen :: (Generic a, GSubst e (Rep a)) => Map e -> Permutation -> a -> a
+substgen m p = to . gsubst m p . from
 
 class Nominal e => Subst e a where
-  subst :: Map e -> a -> a
-  default subst :: (Generic a, GSubst e (Rep a)) => Map e -> a -> a
+  subst :: Map e -> Permutation -> a -> a
+  default subst :: (Generic a, GSubst e (Rep a)) => Map e -> Permutation -> a -> a
   subst = substgen
 
 instance (Subst e a, Subst e b) => Subst e (a, b)
@@ -39,74 +40,74 @@ instance (Subst e a, Subst e b) => Subst e (Either a b)
 instance Subst e a => Subst e [a]
 instance Subst e a => Subst e (Maybe a)
 
-subst1gen :: (Generic1 f, GSubst1 e (Rep1 f)) => (Map e -> a -> a) -> Map e -> f a -> f a
-subst1gen f m = to1 . gsubst1 f m . from1
+subst1gen :: (Generic1 f, GSubst1 e (Rep1 f)) => (Map e -> Permutation -> a -> a) -> Map e -> Permutation -> f a -> f a
+subst1gen f m p = to1 . gsubst1 f m p . from1
 
 class Nominal e => Subst1 e f where
-  subst1 :: (Map e -> a -> a) -> Map e -> f a -> f a
-  default subst1 ::  (Generic1 f, GSubst1 e (Rep1 f)) => (Map e -> a -> a) -> Map e -> f a -> f a
+  subst1 :: (Map e -> Permutation -> a -> a) -> Map e -> Permutation -> f a -> f a
+  default subst1 ::  (Generic1 f, GSubst1 e (Rep1 f)) => (Map e -> Permutation -> a -> a) -> Map e -> Permutation -> f a -> f a
   subst1 = subst1gen
 
 class Nominal e => GSubst e f where
-  gsubst :: Map e -> f a -> f a
+  gsubst :: Map e -> Permutation -> f a -> f a
 
 instance Subst e c => GSubst e (K1 i c) where
-  gsubst m (K1 v) = K1 (subst m v)
+  gsubst m p (K1 v) = K1 (subst m p v)
 
 instance Nominal e => GSubst e V1 where
-  gsubst _ v = v `seq` case v of {}
+  gsubst _ _ v = v `seq` case v of {}
 
 instance GSubst e f => GSubst e (M1 i c f) where
-  gsubst m (M1 v) = M1 (gsubst m v)
+  gsubst m p (M1 v) = M1 (gsubst m p v)
 
 instance Nominal e => GSubst e U1 where
-  gsubst _ U1 = U1
+  gsubst _ _ U1 = U1
 
 instance (GSubst e f, GSubst e g) => GSubst e (f :*: g) where
-  gsubst m (x :*: y) = gsubst m x :*: gsubst m y
+  gsubst m p (x :*: y) = gsubst m p x :*: gsubst m p y
 
 instance (GSubst e f, GSubst e g) => GSubst e (f :+: g) where
-  gsubst m (L1 x) = L1 (gsubst m x)
-  gsubst m (R1 x) = R1 (gsubst m x)
+  gsubst m p (L1 x) = L1 (gsubst m p x)
+  gsubst m p (R1 x) = R1 (gsubst m p x)
 
 instance (Subst1 e f, GSubst e g) => GSubst e (f :.: g) where
-  gsubst m (Comp1 fgx) = Comp1 $ subst1 gsubst m fgx
+  gsubst m p (Comp1 fgx) = Comp1 $ subst1 gsubst m p fgx
 
 class Nominal e => GSubst1 e f where
-  gsubst1 :: (Map e -> a -> a) -> Map e -> f a -> f a
+  gsubst1 :: (Map e -> Permutation -> a -> a) -> Map e -> Permutation -> f a -> f a
 
 instance Nominal e => GSubst1 e V1 where
-  gsubst1 _ _ v = v `seq` case v of {}
+  gsubst1 _ _ _ v = v `seq` case v of {}
 
 instance Nominal e => GSubst1 e U1 where
-  gsubst1 _ _ U1 = U1
+  gsubst1 _ _ _ U1 = U1
 
 instance (GSubst1 e f, GSubst1 e g) => GSubst1 e (f :*: g) where
-  gsubst1 f m (x :*: y) = gsubst1 f m x :*: gsubst1 f m y
+  gsubst1 f m p (x :*: y) = gsubst1 f m p x :*: gsubst1 f m p y
 
 instance (GSubst1 e f, GSubst1 e g) => GSubst1 e (f :+: g) where
-  gsubst1 f m (L1 x) = L1 $ gsubst1 f m x
-  gsubst1 f m (R1 x) = R1 $ gsubst1 f m x
+  gsubst1 f m p (L1 x) = L1 $ gsubst1 f m p x
+  gsubst1 f m p (R1 x) = R1 $ gsubst1 f m p x
 
 instance (Subst1 e f, GSubst1 e g) => GSubst1 e (f :.: g) where
-  gsubst1 f m (Comp1 fgx) = Comp1 $ subst1 (gsubst1 f) m fgx
+  gsubst1 f m p (Comp1 fgx) = Comp1 $ subst1 (gsubst1 f) m p fgx
 
 instance Subst e c => GSubst1 e (K1 i c) where
-  gsubst1 _ m (K1 v) = K1 (subst m v)
+  gsubst1 _ m p (K1 v) = K1 (subst m p v)
 
 instance GSubst1 e f => GSubst1 e (M1 i c f) where
-  gsubst1 f m (M1 v) = M1 (gsubst1 f m v)
+  gsubst1 f m p (M1 v) = M1 (gsubst1 f m p v)
 
 instance Nominal e => GSubst1 e Par1 where
-  gsubst1 f m (Par1 a) = Par1 (f m a)
+  gsubst1 f m p (Par1 a) = Par1 (f m p a)
 
 instance Subst1 e f => GSubst1 e (Rec1 f) where
-  gsubst1 f m (Rec1 x) = Rec1 (subst1 f m x)
+  gsubst1 f m p (Rec1 x) = Rec1 (subst1 f m p x)
 
-substexp :: (Generic e, AsName e, GSubst e (Rep e)) => Map e -> e -> e
-substexp m t = case t^?_Name of
-  Just v -> fromMaybe t $ Map.lookup v m
-  Nothing -> substgen m t
+substexp :: (Generic e, AsName e, GSubst e (Rep e)) => Map e -> Permutation -> e -> e
+substexp m p t = case t^?_Name of
+  Just (perm p -> v) -> fromMaybe (review _Name v) $ Map.lookup v m
+  Nothing -> substgen m p t
 
 instance {-# overlappable #-} 
   ( AsName e
@@ -116,11 +117,12 @@ instance {-# overlappable #-}
   ) => Subst e e where
   subst = substexp
 
-instance {-# overlapping #-} Subst Name Name where subst m a = fromMaybe a $ Map.lookup a m
+instance {-# overlapping #-} Subst Name Name where
+  subst m p (perm p -> a) = fromMaybe a $ Map.lookup a m
 
 instance (Subst e a, Binding a, Subst e b, Nominal b) => Subst e (Tie a b) where
-  subst e (Tie a b)
-    | p <- fst $ Set.foldr step (mempty, supply (e, a, b)) (bv a /\ coarsest (supp e))
-    = Tie (subst e (perm p a)) (subst e (perm p b))
+  subst m p (Tie a b)
+    | p' <- fst $ Set.foldr step (p, supply (m, p, a, b)) $ bv a /\ perm (inv p) (coarsest (supp m)) -- (m,p,a,b) is conservative but cheap
+    = Tie (subst m p' a) (subst m p' b)
     where step u (x, vs) = case refresh vs of
             (v,vs') -> (swap u v <> x, vs')
