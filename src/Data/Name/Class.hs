@@ -22,7 +22,7 @@
 module Data.Name.Class
 ( Permutable(..), Permutable1(..)
 , Nominal(..), Nominal1(..)
-, Trivial, Trivial1
+, Basic, Basic1
 , Supply(..), suppgen, equivgen, sepgen, supplysupp, supplygen
 , Fresh(..), Fresh1(..), fresh
 -- , (#), support
@@ -738,32 +738,32 @@ instance (Irrefutable a, Irrefutable b, Irrefutable c) => Irrefutable1 ((,,,) a 
   match1 i (a,b,c,d) (e,f,g,h) = match a e <> match b f <> match c g <> i d h
 
 --------------------------------------------------------------------------------
--- * Trivial Support
+-- * Basic Support
 --------------------------------------------------------------------------------
 
-class Nominal a => Trivial a
+class Nominal a => Basic a
 
-instance Trivial Void
-instance Trivial ()
-instance Trivial Bool
-instance Trivial Char
-instance Trivial Int
-instance Trivial a => Trivial [a]
-instance Trivial a => Trivial (Maybe a)
-instance (Trivial a, Trivial b) => Trivial (Either a b)
-instance (Trivial a, Trivial b) => Trivial (a, b)
-instance (Trivial a, Trivial b, Trivial c) => Trivial (a, b, c)
-instance (Trivial a, Trivial b, Trivial c, Trivial d) => Trivial (a, b, c, d)
+instance Basic Void
+instance Basic ()
+instance Basic Bool
+instance Basic Char
+instance Basic Int
+instance Basic a => Basic [a]
+instance Basic a => Basic (Maybe a)
+instance (Basic a, Basic b) => Basic (Either a b)
+instance (Basic a, Basic b) => Basic (a, b)
+instance (Basic a, Basic b, Basic c) => Basic (a, b, c)
+instance (Basic a, Basic b, Basic c, Basic d) => Basic (a, b, c, d)
 
 --------------------------------------------------------------------------------
--- * Lifted Trivial Support
+-- * Lifted Basic Support
 --------------------------------------------------------------------------------
 
-class Nominal1 f => Trivial1 f
+class Nominal1 f => Basic1 f
 
-instance Trivial1 []
-instance Trivial1 Maybe
-instance Trivial a => Trivial1 (Either a)
-instance Trivial a => Trivial1 ((,) a)
-instance (Trivial a, Trivial b) => Trivial1 ((,,) a b)
-instance (Trivial a, Trivial b, Trivial c) => Trivial1 ((,,,) a b c)
+instance Basic1 []
+instance Basic1 Maybe
+instance Basic a => Basic1 (Either a)
+instance Basic a => Basic1 ((,) a)
+instance (Basic a, Basic b) => Basic1 ((,,) a b)
+instance (Basic a, Basic b, Basic c) => Basic1 ((,,,) a b c)
